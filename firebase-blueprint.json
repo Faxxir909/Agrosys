@@ -1,0 +1,150 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile, representing a broker.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string", "enum": ["broker", "admin"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "role"]
+    },
+    "Client": {
+      "title": "Client",
+      "description": "A producer or buyer.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["productor", "acopio", "exportador"] },
+        "phone": { "type": "string" },
+        "location": {
+          "type": "object",
+          "properties": {
+            "lat": { "type": "number" },
+            "lng": { "type": "number" },
+            "address": { "type": "string" }
+          }
+        },
+        "nextContactDate": { "type": "string", "format": "date-time" },
+        "ownerId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "type", "ownerId", "createdAt"]
+    },
+    "PlantedArea": {
+      "title": "PlantedArea",
+      "description": "Area planted by a client for a specific crop and campaign.",
+      "type": "object",
+      "properties": {
+        "cropType": { "type": "string" },
+        "campaign": { "type": "string" },
+        "area_ha": { "type": "number" },
+        "ownerId": { "type": "string" }
+      },
+      "required": ["cropType", "campaign", "area_ha", "ownerId"]
+    },
+    "Opportunity": {
+      "title": "Opportunity",
+      "description": "An offer or demand for grains.",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "enum": ["oferta", "demanda"] },
+        "clientId": { "type": "string" },
+        "cropType": { "type": "string" },
+        "quantity_tn": { "type": "number" },
+        "price_usd": { "type": "number" },
+        "location": { "type": "string" },
+        "status": { "type": "string", "enum": ["abierta", "cerrada"] },
+        "ownerId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["type", "clientId", "cropType", "quantity_tn", "price_usd", "status", "ownerId", "createdAt"]
+    },
+    "WhatsAppAlert": {
+      "title": "WhatsAppAlert",
+      "description": "Incoming raw message from WhatsApp.",
+      "type": "object",
+      "properties": {
+        "rawMessage": { "type": "string" },
+        "sourceGroup": { "type": "string" },
+        "senderPhone": { "type": "string" },
+        "suggestedType": { "type": "string", "enum": ["oferta", "demanda", "desconocido"] },
+        "suggestedCropType": { "type": "string" },
+        "suggestedQuantity": { "type": "number" },
+        "status": { "type": "string", "enum": ["nueva", "procesada", "descartada"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["rawMessage", "sourceGroup", "senderPhone", "status", "createdAt"]
+    },
+    "Deal": {
+      "title": "Deal",
+      "description": "A signed brokerage contract.",
+      "type": "object",
+      "properties": {
+        "cropType": { "type": "string" },
+        "sellerId": { "type": "string" },
+        "buyerId": { "type": "string" },
+        "sellerName": { "type": "string" },
+        "buyerName": { "type": "string" },
+        "quantity_tn": { "type": "number" },
+        "price_seller": { "type": "number" },
+        "price_buyer": { "type": "number" },
+        "totalCommission": { "type": "number" },
+        "location": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["cropType", "sellerId", "buyerId", "sellerName", "buyerName", "quantity_tn", "price_seller", "price_buyer", "totalCommission", "location", "ownerId", "createdAt"]
+    },
+    "Task": {
+      "title": "Task",
+      "description": "Commitments and alerts managed in the agenda.",
+      "type": "object",
+      "properties": {
+        "taskTitle": { "type": "string" },
+        "clientId": { "type": "string" },
+        "clientName": { "type": "string" },
+        "dueDate": { "type": "string" },
+        "cropType": { "type": "string" },
+        "category": { "type": "string", "enum": ["seguimiento", "siembra", "cosecha", "cobro", "documentacion"] },
+        "status": { "type": "string", "enum": ["pendiente", "completada"] },
+        "ownerId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["taskTitle", "clientId", "clientName", "dueDate", "category", "status", "ownerId", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles."
+    },
+    "/clients/{clientId}": {
+      "schema": { "$ref": "#/entities/Client" },
+      "description": "Clients managed by the broker."
+    },
+    "/clients/{clientId}/plantedAreas/{areaId}": {
+      "schema": { "$ref": "#/entities/PlantedArea" },
+      "description": "Planted areas for a client."
+    },
+    "/opportunities/{opportunityId}": {
+      "schema": { "$ref": "#/entities/Opportunity" },
+      "description": "Market opportunities (offers/demands)."
+    },
+    "/whatsappAlerts/{alertId}": {
+      "schema": { "$ref": "#/entities/WhatsAppAlert" },
+      "description": "Incoming WhatsApp messages captured via webhook."
+    },
+    "/deals/{dealId}": {
+      "schema": { "$ref": "#/entities/Deal" },
+      "description": "Finalized grain brokering business deals."
+    },
+    "/tasks/{taskId}": {
+      "schema": { "$ref": "#/entities/Task" },
+      "description": "Scheduled commitments and logistical alerts."
+    }
+  }
+}

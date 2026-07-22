@@ -1,0 +1,8 @@
+{
+  "name": "AgroSys - Corretaje de Granos",
+  "description": "Plataforma digital integrada para intermediación de granos. Gestión CRM, Oportunidades y Logística.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -1,0 +1,159 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['email', 'role']) &&
+             data.keys().size() <= 4 &&
+             data.email is string && data.email.size() <= 100 &&
+             data.role in ['broker', 'admin'] &&
+             (data.keys().hasAll(['name']) ? (data.name is string && data.name.size() <= 100) : true) &&
+             (data.keys().hasAll(['createdAt']) ? data.createdAt is timestamp : true);
+    }
+
+    function isValidClient(data) {
+      return data.keys().hasAll(['name', 'ownerId', 'createdAt']) &&
+             data.keys().size() <= 100 &&
+             data.name is string && data.name.size() <= 150 &&
+             (data.ownerId == request.auth.uid || data.ownerId == 'GLOBAL') &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidPlantedArea(data) {
+      return data.keys().hasAll(['cropType', 'campaign', 'area_ha', 'ownerId']) &&
+             data.keys().size() <= 4 &&
+             data.cropType is string && data.cropType.size() <= 50 &&
+             data.campaign is string && data.campaign.size() <= 50 &&
+             data.area_ha is number &&
+             (data.ownerId == request.auth.uid || data.ownerId == 'GLOBAL');
+    }
+
+    function isValidOpportunity(data) {
+      return data.keys().hasAll(['type', 'clientId', 'cropType', 'quantity_tn', 'price_usd', 'status', 'ownerId', 'createdAt']) &&
+             data.keys().size() <= 9 &&
+             data.type in ['oferta', 'demanda'] &&
+             data.clientId is string && data.clientId.size() <= 128 &&
+             data.cropType is string && data.cropType.size() <= 50 &&
+             data.quantity_tn is number &&
+             data.price_usd is number &&
+             data.status in ['abierta', 'cerrada'] &&
+             (data.ownerId == request.auth.uid || data.ownerId == 'GLOBAL') &&
+             data.createdAt is timestamp &&
+             (data.keys().hasAll(['location']) ? (data.location is string && data.location.size() <= 200) : true);
+    }
+
+    function isValidWhatsAppAlert(data) {
+      return data.keys().hasAll(['rawMessage', 'sourceGroup', 'senderPhone', 'status', 'ownerId', 'createdAt']) &&
+             data.keys().size() <= 14 &&
+             data.rawMessage is string && data.rawMessage.size() <= 1000 &&
+             data.sourceGroup is string && data.sourceGroup.size() <= 100 &&
+             data.senderPhone is string && data.senderPhone.size() <= 20 &&
+             data.status in ['nueva', 'procesada', 'descartada'] &&
+             (data.ownerId == request.auth.uid || data.ownerId == 'GLOBAL') &&
+             data.createdAt is timestamp &&
+             (data.keys().hasAll(['suggestedType']) ? (data.suggestedType in ['oferta', 'demanda', 'desconocido']) : true) &&
+             (data.keys().hasAll(['suggestedCropType']) ? (data.suggestedCropType is string && data.suggestedCropType.size() <= 50) : true) &&
+             (data.keys().hasAll(['suggestedQuantity']) ? (data.suggestedQuantity is number) : true) &&
+             (data.keys().hasAll(['suggestedPrice']) ? (data.suggestedPrice is number || data.suggestedPrice == null) : true) &&
+             (data.keys().hasAll(['suggestedQuantityUnit']) ? (data.suggestedQuantityUnit is string && data.suggestedQuantityUnit.size() <= 20) : true) &&
+             (data.keys().hasAll(['suggestedPriceUnit']) ? (data.suggestedPriceUnit is string && data.suggestedPriceUnit.size() <= 10) : true) &&
+             (data.keys().hasAll(['originalQuantity']) ? (data.originalQuantity is number || data.originalQuantity == null) : true) &&
+             (data.keys().hasAll(['originalPrice']) ? (data.originalPrice is number || data.originalPrice == null) : true);
+    }
+
+    function isValidDeal(data) {
+      return data.keys().hasAll(['cropType', 'sellerId', 'buyerId', 'sellerName', 'buyerName', 'quantity_tn', 'price_seller', 'price_buyer', 'totalCommission', 'location', 'ownerId', 'createdAt']) &&
+             data.keys().size() <= 12 &&
+             data.cropType is string && data.cropType.size() <= 50 &&
+             data.sellerId is string && data.sellerId.size() <= 128 &&
+             data.buyerId is string && data.buyerId.size() <= 128 &&
+             data.sellerName is string && data.sellerName.size() <= 150 &&
+             data.buyerName is string && data.buyerName.size() <= 150 &&
+             data.quantity_tn is number &&
+             data.price_seller is number &&
+             data.price_buyer is number &&
+             data.totalCommission is number &&
+             data.location is string && data.location.size() <= 200 &&
+             (data.ownerId == request.auth.uid || data.ownerId == 'GLOBAL') &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidTask(data) {
+      return data.keys().hasAll(['taskTitle', 'clientId', 'clientName', 'dueDate', 'cropType', 'category', 'status', 'ownerId', 'createdAt']) &&
+             data.keys().size() <= 9 &&
+             data.taskTitle is string && data.taskTitle.size() <= 250 &&
+             data.clientId is string && data.clientId.size() <= 128 &&
+             data.clientName is string && data.clientName.size() <= 150 &&
+             data.dueDate is string && data.dueDate.size() <= 20 &&
+             data.cropType is string && data.cropType.size() <= 50 &&
+             data.category in ['seguimiento', 'siembra', 'cosecha', 'cobro', 'documentacion'] &&
+             data.status in ['pendiente', 'completada'] &&
+             data.ownerId == request.auth.uid &&
+             data.createdAt is timestamp;
+    }
+
+    match /users/{userId} {
+      allow get: if isSignedIn() && request.auth.uid == userId && isValidId(userId);
+      allow create: if isSignedIn() && request.auth.uid == userId && isValidId(userId) && isValidUser(incoming());
+      allow update: if isSignedIn() && request.auth.uid == userId && isValidId(userId) && isValidUser(incoming()) && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'role']);
+    }
+
+    match /clients/{clientId} {
+      allow get: if isSignedIn() && isValidId(clientId) && (existing().ownerId == request.auth.uid || existing().ownerId == 'GLOBAL' || !('ownerId' in existing()));
+      allow list: if isSignedIn() && (resource.data.ownerId == request.auth.uid || resource.data.ownerId == 'GLOBAL' || !('ownerId' in resource.data));
+      allow create: if isSignedIn() && isValidId(clientId) && isValidClient(incoming()) && incoming().createdAt == request.time;
+      allow update: if isSignedIn() && isValidId(clientId) && isValidClient(incoming()) && (incoming().ownerId == existing().ownerId || !('ownerId' in existing())) && incoming().createdAt == existing().createdAt;
+      allow delete: if isSignedIn() && isValidId(clientId) && (existing().ownerId == request.auth.uid || existing().ownerId == 'GLOBAL' || !('ownerId' in existing()));
+      
+      match /plantedAreas/{areaId} {
+        allow get: if isSignedIn() && isValidId(areaId) && (existing().ownerId == request.auth.uid || existing().ownerId == 'GLOBAL' || !('ownerId' in existing()));
+        allow list: if isSignedIn() && (resource.data.ownerId == request.auth.uid || resource.data.ownerId == 'GLOBAL' || !('ownerId' in resource.data));
+        allow create: if isSignedIn() && isValidId(areaId) && isValidPlantedArea(incoming()) && (get(/databases/$(database)/documents/clients/$(clientId)).data.ownerId == request.auth.uid || get(/databases/$(database)/documents/clients/$(clientId)).data.ownerId == 'GLOBAL' || !('ownerId' in get(/databases/$(database)/documents/clients/$(clientId)).data));
+        allow update: if isSignedIn() && isValidId(areaId) && isValidPlantedArea(incoming()) && (incoming().ownerId == existing().ownerId || !('ownerId' in existing())) && incoming().diff(existing()).affectedKeys().hasOnly(['cropType', 'campaign', 'area_ha']);
+        allow delete: if isSignedIn() && isValidId(areaId) && (existing().ownerId == request.auth.uid || existing().ownerId == 'GLOBAL' || !('ownerId' in existing()));
+      }
+    }
+
+    match /opportunities/{opportunityId} {
+      allow get: if isSignedIn() && isValidId(opportunityId) && (existing().ownerId == request.auth.uid || existing().ownerId == 'GLOBAL' || !('ownerId' in existing()));
+      allow list: if isSignedIn() && (resource.data.ownerId == request.auth.uid || resource.data.ownerId == 'GLOBAL' || !('ownerId' in resource.data));
+      allow create: if isSignedIn() && isValidId(opportunityId) && isValidOpportunity(incoming()) && exists(/databases/$(database)/documents/clients/$(incoming().clientId)) && (get(/databases/$(database)/documents/clients/$(incoming().clientId)).data.ownerId == request.auth.uid || get(/databases/$(database)/documents/clients/$(incoming().clientId)).data.ownerId == 'GLOBAL' || !('ownerId' in get(/databases/$(database)/documents/clients/$(incoming().clientId)).data)) && incoming().createdAt == request.time;
+      allow update: if isSignedIn() && isValidId(opportunityId) && isValidOpportunity(incoming()) && (incoming().ownerId == existing().ownerId || !('ownerId' in existing())) && incoming().createdAt == existing().createdAt && incoming().clientId == existing().clientId && incoming().diff(existing()).affectedKeys().hasOnly(['quantity_tn', 'price_usd', 'status', 'location']);
+      allow delete: if isSignedIn() && isValidId(opportunityId) && (existing().ownerId == request.auth.uid || existing().ownerId == 'GLOBAL' || !('ownerId' in existing()));
+    }
+    match /whatsappAlerts/{alertId} {
+      allow get: if isSignedIn() && isValidId(alertId) && (existing().ownerId == request.auth.uid || existing().ownerId == 'GLOBAL' || !('ownerId' in existing()));
+      allow list: if isSignedIn() && (resource.data.ownerId == request.auth.uid || resource.data.ownerId == 'GLOBAL' || !('ownerId' in resource.data));
+      allow create: if isSignedIn() && isValidId(alertId) && isValidWhatsAppAlert(incoming()) && incoming().createdAt == request.time;
+      allow update: if isSignedIn() && isValidId(alertId) && isValidWhatsAppAlert(incoming()) && (incoming().ownerId == existing().ownerId || !('ownerId' in existing())) && incoming().createdAt == existing().createdAt && incoming().diff(existing()).affectedKeys().hasOnly(['status']);
+      allow delete: if isSignedIn() && isValidId(alertId) && (existing().ownerId == request.auth.uid || existing().ownerId == 'GLOBAL' || !('ownerId' in existing()));
+    }
+    match /deals/{dealId} {
+      allow get: if isSignedIn() && isValidId(dealId) && (existing().ownerId == request.auth.uid || existing().ownerId == 'GLOBAL' || !('ownerId' in existing()));
+      allow list: if isSignedIn() && (resource.data.ownerId == request.auth.uid || resource.data.ownerId == 'GLOBAL' || !('ownerId' in resource.data));
+      allow create: if isSignedIn() && isValidId(dealId) && isValidDeal(incoming()) && incoming().createdAt == request.time;
+      allow delete: if isSignedIn() && isValidId(dealId) && (existing().ownerId == request.auth.uid || existing().ownerId == 'GLOBAL' || !('ownerId' in existing()));
+    }
+    match /tasks/{taskId} {
+      allow get: if isSignedIn() && isValidId(taskId);
+      allow list: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(taskId) && isValidTask(incoming()) && incoming().createdAt == request.time;
+      allow update: if isSignedIn() && isValidId(taskId) && isValidTask(incoming()) && incoming().createdAt == existing().createdAt && incoming().ownerId == existing().ownerId && incoming().diff(existing()).affectedKeys().hasOnly(['status']);
+      allow delete: if isSignedIn() && isValidId(taskId);
+    }
+  }
+}
