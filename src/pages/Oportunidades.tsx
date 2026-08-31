@@ -865,133 +865,220 @@ export function Oportunidades() {
             handleOpenWaModal={handleOpenWaModal}
           />
         ) : (
-          <div className="hidden md:block overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[800px]">
-              <thead>
-                <tr className="border-b border-[#252525]">
-                  {[
-                    { label: 'Estado', key: 'status' },
-                    { label: 'Fecha', key: 'createdAt' },
-                    { label: 'Cliente', key: 'client' },
-                    { label: 'Grano', key: 'cropType' },
-                    { label: 'Volumen', key: 'quantity_tn' },
-                    { label: 'Precio USD/tn', key: 'price_usd' },
-                    { label: 'Destino', key: 'location' },
-                  ].map(col => (
-                    <th
-                      key={col.key}
-                      className="px-4 py-3 text-[10px] font-black text-zinc-600 uppercase tracking-widest cursor-pointer hover:text-zinc-300 transition-colors select-none"
-                      onClick={() => handleSort(col.key)}
-                    >
-                      <span className="flex items-center gap-1">
-                        {col.label}
-                        {sortConfig.key === col.key && (
-                          <span className="text-green-500">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
-                        )}
-                      </span>
-                    </th>
-                  ))}
-                  <th className="px-4 py-3 text-[10px] font-black text-zinc-600 uppercase tracking-widest text-right">Acc.</th>
-                </tr>
-              </thead>
-              <tbody>
-                {oppLoading ? (
-                  <tr>
-                    <td colSpan={8} className="p-12 text-center">
-                      <Loader2 className="w-8 h-8 animate-spin text-green-500 mx-auto mb-4" />
-                      <p className="text-zinc-500 font-medium text-sm">Cargando oportunidades...</p>
-                    </td>
-                  </tr>
-                ) : filteredOpps.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="py-16 text-center">
-                      <div className="w-16 h-16 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center mx-auto mb-4">
-                        <Info className="w-7 h-7 text-zinc-600" />
-                      </div>
-                      <p className="font-bold text-zinc-400 mb-1">Sin resultados para este filtro</p>
-                      <p className="text-zinc-600 text-sm">Ajustá los filtros o creá un nuevo registro.</p>
-                    </td>
-                  </tr>
-                ) : filteredOpps.map((opp, idx) => {
-                  const client = clients.find(c => c.id === opp.clientId);
-                  const clientName = client?.name || 'Desconocido';
-                  const clientPhone = client?.phone;
-                  const cs = getCropStyle(opp.cropType);
-                  const isOferta = opp.type === 'oferta';
-                  const totalValor = Number(opp.quantity_tn) * Number(opp.price_usd);
-                  return (
-                    <tr
-                      key={opp.id}
-                      className={`group border-b border-[#202020] transition-colors hover:bg-white/[0.02] ${idx % 2 === 0 ? '' : 'bg-white/[0.01]'}`}
-                    >
-                      <td className="px-4 py-3">
-                        <button
-                          onClick={() => toggleStatus(opp)}
-                          className={`flex items-center gap-1.5 text-[10px] font-black px-2.5 py-1.5 rounded-lg border uppercase tracking-wider transition-all cursor-pointer ${
-                            opp.status === 'abierta'    ? 'bg-amber-500/8 text-amber-400 border-amber-500/20 hover:bg-amber-500/15' :
-                            opp.status === 'negociacion' ? 'bg-blue-500/8 text-blue-400 border-blue-500/20 hover:bg-blue-500/15' :
-                            opp.status === 'ganada'     ? 'bg-green-500/8 text-green-400 border-green-500/20' :
-                            opp.status === 'perdida'    ? 'bg-red-500/8 text-red-400 border-red-500/20' :
-                            'bg-zinc-800 text-zinc-400 border-zinc-700'
-                          }`}
-                        >
-                          {opp.status === 'ganada' ? <CheckCircle2 className="w-3 h-3" /> : <Circle className="w-3 h-3" />}
-                          {opp.status}
-                        </button>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="text-xs text-zinc-500 font-mono">
-                          {opp.createdAt ? format(new Date(opp.createdAt), 'dd/MM/yy') : '-'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div>
-                          <p className="text-sm font-bold text-zinc-200 truncate max-w-[180px]">{clientName}</p>
-                          {opp.location && <p className="text-[10px] text-zinc-600 truncate max-w-[180px] mt-0.5">📍 {opp.location}</p>}
+          <div>
+            {oppLoading ? (
+              <div className="p-12 text-center">
+                <Loader2 className="w-8 h-8 animate-spin text-green-500 mx-auto mb-4" />
+                <p className="text-zinc-500 font-medium text-sm">Cargando oportunidades...</p>
+              </div>
+            ) : filteredOpps.length === 0 ? (
+              <div className="py-16 text-center">
+                <div className="w-16 h-16 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center mx-auto mb-4">
+                  <Info className="w-7 h-7 text-zinc-600" />
+                </div>
+                <p className="font-bold text-zinc-400 mb-1">Sin resultados para este filtro</p>
+                <p className="text-zinc-600 text-sm">Ajustá los filtros o creá un nuevo registro.</p>
+              </div>
+            ) : (
+              <>
+                {/* Mobile Cards View for List Mode */}
+                <div className="md:hidden space-y-3 p-3">
+                  {filteredOpps.map((opp) => {
+                    const client = clients.find(c => c.id === opp.clientId);
+                    const clientName = client?.name || 'Desconocido';
+                    const clientPhone = client?.phone;
+                    const cs = getCropStyle(opp.cropType);
+                    const isOferta = opp.type === 'oferta';
+                    const totalValor = Number(opp.quantity_tn) * Number(opp.price_usd);
+
+                    return (
+                      <div key={opp.id} className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-xl p-3.5 space-y-3 shadow-sm">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-lg border ${cs.bg} ${cs.text} ${cs.border}`}>
+                              {cs.emoji} {opp.cropType}
+                            </span>
+                            <span className={`text-[9px] uppercase font-black px-2 py-0.5 rounded-md border ${
+                              isOferta
+                                ? 'bg-green-500/10 text-green-400 border-green-500/20'
+                                : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                            }`}>
+                              {isOferta ? '↑ Oferta' : '↓ Demanda'}
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-zinc-500 font-mono">
+                            {opp.createdAt ? format(new Date(opp.createdAt), 'dd/MM/yy') : '-'}
+                          </span>
                         </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-lg border ${cs.bg} ${cs.text} ${cs.border}`}>
-                          {cs.emoji} {opp.cropType}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="text-sm font-bold font-mono text-zinc-200">{formatNumber(opp.quantity_tn)}</span>
-                        <span className="text-[10px] text-zinc-600 ml-1">TN</span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div>
-                          <p className={`text-sm font-black font-mono ${isOferta ? 'text-green-400' : 'text-blue-400'}`}>
-                            {opp.priceMode === 'a_negociar' ? <span className="text-zinc-500 text-xs">A negociar</span> : `$${formatNumber(opp.price_usd)}`}
-                          </p>
-                          {opp.priceMode !== 'a_negociar' && <p className="text-[10px] text-zinc-600 font-mono">≈ ${formatNumber(Math.round(totalValor / 1000))}K total</p>}
+
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <h4 className="text-sm font-bold text-white truncate">{clientName}</h4>
+                            {opp.location && <p className="text-[11px] text-zinc-400 truncate mt-0.5">📍 {opp.location}</p>}
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className={`text-sm font-black font-mono ${isOferta ? 'text-green-400' : 'text-blue-400'}`}>
+                              {opp.priceMode === 'a_negociar' ? 'A negociar' : `$${formatNumber(opp.price_usd)}`}
+                            </p>
+                            <p className="text-[10px] text-zinc-400 font-mono font-bold">
+                              {formatNumber(opp.quantity_tn)} TN
+                            </p>
+                          </div>
                         </div>
-                      </td>
-                      <td className="px-4 py-3 text-xs text-zinc-500 truncate max-w-[140px]">{opp.location || <span className="text-zinc-700 italic">A convenir</span>}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-                          {clientPhone && (
-                            <button
-                              onClick={() => handleOpenWaModal(clientPhone, opp.clientId, clientName, { cropType: opp.cropType, quantity_tn: opp.quantity_tn, price_usd: opp.price_usd, location: opp.location })}
-                              className="p-1.5 text-green-400 hover:bg-green-500/10 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-green-500/20"
-                              title="WhatsApp"
-                            >
-                              <MessageSquare className="w-3.5 h-3.5" />
-                            </button>
-                          )}
+
+                        <div className="flex items-center justify-between pt-2 border-t border-[#282828]">
                           <button
-                            onClick={() => deleteOpp(opp.id)}
-                            className="p-1.5 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-red-500/20"
+                            onClick={() => toggleStatus(opp)}
+                            className={`flex items-center gap-1 text-[10px] font-black px-2.5 py-1 rounded-lg border uppercase tracking-wider transition-all cursor-pointer ${
+                              opp.status === 'abierta'    ? 'bg-amber-500/8 text-amber-400 border-amber-500/20' :
+                              opp.status === 'negociacion' ? 'bg-blue-500/8 text-blue-400 border-blue-500/20' :
+                              opp.status === 'ganada'     ? 'bg-green-500/8 text-green-400 border-green-500/20' :
+                              opp.status === 'perdida'    ? 'bg-red-500/8 text-red-400 border-red-500/20' :
+                              'bg-zinc-800 text-zinc-400 border-zinc-700'
+                            }`}
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            {opp.status === 'ganada' ? <CheckCircle2 className="w-3 h-3" /> : <Circle className="w-3 h-3" />}
+                            {opp.status || 'abierta'}
                           </button>
+
+                          <div className="flex items-center gap-1.5">
+                            {clientPhone && (
+                              <button
+                                onClick={() => handleOpenWaModal(clientPhone, opp.clientId, clientName, { cropType: opp.cropType, quantity_tn: opp.quantity_tn, price_usd: opp.price_usd, location: opp.location })}
+                                className="p-2 text-green-400 bg-green-500/10 hover:bg-green-500/20 rounded-lg transition-colors cursor-pointer border border-green-500/20"
+                                title="WhatsApp"
+                              >
+                                <MessageSquare className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                            <button
+                              onClick={() => deleteOpp(opp.id)}
+                              className="p-2 text-zinc-400 hover:text-red-400 bg-zinc-800 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer border border-zinc-700 hover:border-red-500/20"
+                              title="Eliminar"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Desktop Table View */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full text-left border-collapse min-w-[800px]">
+                    <thead>
+                      <tr className="border-b border-[#252525]">
+                        {[
+                          { label: 'Estado', key: 'status' },
+                          { label: 'Fecha', key: 'createdAt' },
+                          { label: 'Cliente', key: 'client' },
+                          { label: 'Grano', key: 'cropType' },
+                          { label: 'Volumen', key: 'quantity_tn' },
+                          { label: 'Precio USD/tn', key: 'price_usd' },
+                          { label: 'Destino', key: 'location' },
+                        ].map(col => (
+                          <th
+                            key={col.key}
+                            className="px-4 py-3 text-[10px] font-black text-zinc-600 uppercase tracking-widest cursor-pointer hover:text-zinc-300 transition-colors select-none"
+                            onClick={() => handleSort(col.key)}
+                          >
+                            <span className="flex items-center gap-1">
+                              {col.label}
+                              {sortConfig.key === col.key && (
+                                <span className="text-green-500">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+                              )}
+                            </span>
+                          </th>
+                        ))}
+                        <th className="px-4 py-3 text-[10px] font-black text-zinc-600 uppercase tracking-widest text-right">Acc.</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredOpps.map((opp, idx) => {
+                        const client = clients.find(c => c.id === opp.clientId);
+                        const clientName = client?.name || 'Desconocido';
+                        const clientPhone = client?.phone;
+                        const cs = getCropStyle(opp.cropType);
+                        const isOferta = opp.type === 'oferta';
+                        const totalValor = Number(opp.quantity_tn) * Number(opp.price_usd);
+                        return (
+                          <tr
+                            key={opp.id}
+                            className={`group border-b border-[#202020] transition-colors hover:bg-white/[0.02] ${idx % 2 === 0 ? '' : 'bg-white/[0.01]'}`}
+                          >
+                            <td className="px-4 py-3">
+                              <button
+                                onClick={() => toggleStatus(opp)}
+                                className={`flex items-center gap-1.5 text-[10px] font-black px-2.5 py-1.5 rounded-lg border uppercase tracking-wider transition-all cursor-pointer ${
+                                  opp.status === 'abierta'    ? 'bg-amber-500/8 text-amber-400 border-amber-500/20 hover:bg-amber-500/15' :
+                                  opp.status === 'negociacion' ? 'bg-blue-500/8 text-blue-400 border-blue-500/20 hover:bg-blue-500/15' :
+                                  opp.status === 'ganada'     ? 'bg-green-500/8 text-green-400 border-green-500/20' :
+                                  opp.status === 'perdida'    ? 'bg-red-500/8 text-red-400 border-red-500/20' :
+                                  'bg-zinc-800 text-zinc-400 border-zinc-700'
+                                }`}
+                              >
+                                {opp.status === 'ganada' ? <CheckCircle2 className="w-3 h-3" /> : <Circle className="w-3 h-3" />}
+                                {opp.status}
+                              </button>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="text-xs text-zinc-500 font-mono">
+                                {opp.createdAt ? format(new Date(opp.createdAt), 'dd/MM/yy') : '-'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div>
+                                <p className="text-sm font-bold text-zinc-200 truncate max-w-[180px]">{clientName}</p>
+                                {opp.location && <p className="text-[10px] text-zinc-600 truncate max-w-[180px] mt-0.5">📍 {opp.location}</p>}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-lg border ${cs.bg} ${cs.text} ${cs.border}`}>
+                                {cs.emoji} {opp.cropType}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="text-sm font-bold font-mono text-zinc-200">{formatNumber(opp.quantity_tn)}</span>
+                              <span className="text-[10px] text-zinc-600 ml-1">TN</span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div>
+                                <p className={`text-sm font-black font-mono ${isOferta ? 'text-green-400' : 'text-blue-400'}`}>
+                                  {opp.priceMode === 'a_negociar' ? <span className="text-zinc-500 text-xs">A negociar</span> : `$${formatNumber(opp.price_usd)}`}
+                                </p>
+                                {opp.priceMode !== 'a_negociar' && <p className="text-[10px] text-zinc-600 font-mono">≈ ${formatNumber(Math.round(totalValor / 1000))}K total</p>}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-xs text-zinc-500 truncate max-w-[140px]">{opp.location || <span className="text-zinc-700 italic">A convenir</span>}</td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                                {clientPhone && (
+                                  <button
+                                    onClick={() => handleOpenWaModal(clientPhone, opp.clientId, clientName, { cropType: opp.cropType, quantity_tn: opp.quantity_tn, price_usd: opp.price_usd, location: opp.location })}
+                                    className="p-1.5 text-green-400 hover:bg-green-500/10 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-green-500/20"
+                                    title="WhatsApp"
+                                  >
+                                    <MessageSquare className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => deleteOpp(opp.id)}
+                                  className="p-1.5 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-red-500/20"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -1649,13 +1736,15 @@ function KanbanBoardView({
   setDraggedOverColumn: (col: string | null) => void;
   handleOpenWaModal: (phone: string, id: string, name: string, context?: any) => void;
 }) {
+  const [selectedMobileCol, setSelectedMobileCol] = useState<string>('all');
+
   const columns = [
-    { id: 'abierta',                name: '📂 Abiertas',              borderClass: 'border-zinc-800 bg-zinc-800/10',       headerClass: 'text-zinc-300' },
-    { id: 'negociacion',            name: '🤝 En Negociación',        borderClass: 'border-amber-500/30 bg-amber-500/5',   headerClass: 'text-amber-300' },
-    { id: 'esperando_confirmacion', name: '⏳ Esp. Confirmación',     borderClass: 'border-sky-500/30 bg-sky-500/5',       headerClass: 'text-sky-300' },
-    { id: 'ganada',                 name: '🏆 Ganadas',               borderClass: 'border-green-500/30 bg-green-500/5',   headerClass: 'text-green-300' },
-    { id: 'perdida',                name: '❌ Perdidas',              borderClass: 'border-red-500/30 bg-red-500/5',       headerClass: 'text-red-300' },
-    { id: 'vencida',                name: '⌛ Vencidas',              borderClass: 'border-zinc-700 bg-zinc-700/5',        headerClass: 'text-zinc-500' }
+    { id: 'abierta',                name: '📂 Abiertas',              shortName: '📂 Abiertas', borderClass: 'border-zinc-800 bg-zinc-800/10',       headerClass: 'text-zinc-300' },
+    { id: 'negociacion',            name: '🤝 En Negociación',        shortName: '🤝 Negociac.', borderClass: 'border-amber-500/30 bg-amber-500/5',   headerClass: 'text-amber-300' },
+    { id: 'esperando_confirmacion', name: '⏳ Esp. Confirmación',     shortName: '⏳ Confirm.',   borderClass: 'border-sky-500/30 bg-sky-500/5',       headerClass: 'text-sky-300' },
+    { id: 'ganada',                 name: '🏆 Ganadas',               shortName: '🏆 Ganadas',  borderClass: 'border-green-500/30 bg-green-500/5',   headerClass: 'text-green-300' },
+    { id: 'perdida',                name: '❌ Perdidas',              shortName: '❌ Perdidas', borderClass: 'border-red-500/30 bg-red-500/5',       headerClass: 'text-red-300' },
+    { id: 'vencida',                name: '⌛ Vencidas',              shortName: '⌛ Vencidas', borderClass: 'border-zinc-700 bg-zinc-700/5',        headerClass: 'text-zinc-500' }
   ] as const;
 
   const getColumnItems = (statusId: string) => {
@@ -1682,141 +1771,205 @@ function KanbanBoardView({
     });
   };
 
+  const visibleColumns = selectedMobileCol === 'all' 
+    ? columns 
+    : columns.filter(c => c.id === selectedMobileCol);
+
   return (
-    <div className="flex gap-4 p-4 overflow-x-auto min-h-[500px] scrollbar-none items-stretch select-none">
-      {columns.map(col => {
-        const items = getColumnItems(col.id);
-        const isOver = draggedOverColumn === col.id;
-
-        return (
-          <div
-            key={col.id}
-            onDragOver={(e) => {
-              e.preventDefault();
-              if (draggedOverColumn !== col.id) {
-                setDraggedOverColumn(col.id);
-              }
-            }}
-            onDragLeave={() => {
-              setDraggedOverColumn(null);
-            }}
-            onDrop={async (e) => {
-              e.preventDefault();
-              setDraggedOverColumn(null);
-              const id = e.dataTransfer.getData('text/plain');
-              if (id) {
-                await handleStatusChange(id, col.id);
-              }
-            }}
-            className={`w-72 sm:w-76 shrink-0 border rounded-2xl p-3.5 flex flex-col transition-all duration-200 ${col.borderClass} ${isOver ? 'ring-2 ring-green-500/60 scale-[1.01] border-green-500/50 shadow-lg shadow-green-500/5' : ''}`}
-          >
-            <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-zinc-800/60">
-              <h4 className={`font-black text-xs uppercase tracking-widest ${(col as any).headerClass}`}>{col.name}</h4>
-              <span className="bg-zinc-900 border border-zinc-800 text-zinc-400 text-[10px] px-1.5 py-0.5 rounded-md font-mono font-bold">
-                {items.length}
+    <div className="space-y-3 p-2 sm:p-4">
+      {/* Mobile Column Switcher Pills */}
+      <div className="sm:hidden flex gap-1.5 overflow-x-auto pb-1.5 scrollbar-none px-1">
+        <button
+          type="button"
+          onClick={() => setSelectedMobileCol('all')}
+          className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
+            selectedMobileCol === 'all'
+              ? 'bg-zinc-200 text-black font-black shadow'
+              : 'bg-zinc-800/80 text-zinc-400 border border-zinc-700/60'
+          }`}
+        >
+          <span>Todos</span>
+          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/20 font-mono">
+            {filteredOpps.length}
+          </span>
+        </button>
+        {columns.map(col => {
+          const count = getColumnItems(col.id).length;
+          const isSelected = selectedMobileCol === col.id;
+          return (
+            <button
+              key={col.id}
+              type="button"
+              onClick={() => setSelectedMobileCol(col.id)}
+              className={`px-2.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
+                isSelected
+                  ? 'bg-green-500 text-black font-black shadow-lg shadow-green-500/20'
+                  : 'bg-zinc-800/80 text-zinc-400 border border-zinc-700/60'
+              }`}
+            >
+              <span>{col.shortName}</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                isSelected ? 'bg-black/30 text-black' : 'bg-zinc-900 text-zinc-400'
+              }`}>
+                {count}
               </span>
-            </div>
+            </button>
+          );
+        })}
+      </div>
 
-            <div className="flex-1 flex flex-col gap-3 overflow-y-auto max-h-[600px] pr-1.5 scrollbar-thin">
-              {items.length === 0 ? (
-                <div className="h-32 flex flex-col items-center justify-center border-2 border-dashed border-zinc-800 rounded-xl text-zinc-550 text-xs gap-1.5">
-                  <span>📥</span>
-                  <span>Arrastrar aquí</span>
-                </div>
-              ) : (
-                items.map(opp => {
-                  const client = clients.find(c => c.id === opp.clientId);
-                  const clientName = client?.name || 'Desconocido';
-                  const clientPhone = client?.phone;
-                  const cs = getCropStyle(opp.cropType);
-                  const isOferta = opp.type === 'oferta';
-                  
-                  return (
-                    <div
-                      key={opp.id}
-                      draggable
-                      onDragStart={(e) => {
-                        e.dataTransfer.setData('text/plain', opp.id);
-                        e.dataTransfer.effectAllowed = 'move';
-                      }}
-                      className="bg-[#1f1f1f] hover:bg-[#252525] border border-[#2e2e2e] hover:border-[#3a3a3a] rounded-xl p-3.5 transition-all duration-150 cursor-grab active:cursor-grabbing shadow-md relative group"
-                    >
-                      <div className="flex items-center justify-between mb-2.5">
-                        <span className="text-[9px] text-zinc-600 font-mono">
-                          {opp.createdAt ? format(new Date(opp.createdAt), 'dd/MM/yy') : '-'}
-                        </span>
-                        <span className={`text-[9px] uppercase font-black px-2 py-0.5 rounded-md border ${
-                          isOferta
-                            ? 'bg-green-500/10 text-green-400 border-green-500/20'
-                            : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
-                        }`}>
-                          {isOferta ? '↑ Venta' : '↓ Compra'}
-                        </span>
-                      </div>
+      {/* Kanban Columns Grid / Horizontal Slider */}
+      <div className="flex gap-4 overflow-x-auto min-h-[500px] scrollbar-none items-stretch select-none snap-x snap-mandatory pb-4">
+        {visibleColumns.map(col => {
+          const items = getColumnItems(col.id);
+          const isOver = draggedOverColumn === col.id;
 
-                      <h5 className="font-black text-xs text-white truncate mb-1.5">{clientName}</h5>
+          return (
+            <div
+              key={col.id}
+              onDragOver={(e) => {
+                e.preventDefault();
+                if (draggedOverColumn !== col.id) {
+                  setDraggedOverColumn(col.id);
+                }
+              }}
+              onDragLeave={() => {
+                setDraggedOverColumn(null);
+              }}
+              onDrop={async (e) => {
+                e.preventDefault();
+                setDraggedOverColumn(null);
+                const id = e.dataTransfer.getData('text/plain');
+                if (id) {
+                  await handleStatusChange(id, col.id);
+                }
+              }}
+              className={`w-[85vw] sm:w-76 shrink-0 border rounded-2xl p-3.5 flex flex-col transition-all duration-200 snap-center ${col.borderClass} ${isOver ? 'ring-2 ring-green-500/60 scale-[1.01] border-green-500/50 shadow-lg shadow-green-500/5' : ''}`}
+            >
+              <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-zinc-800/60">
+                <h4 className={`font-black text-xs uppercase tracking-widest ${(col as any).headerClass}`}>{col.name}</h4>
+                <span className="bg-zinc-900 border border-zinc-800 text-zinc-400 text-[10px] px-1.5 py-0.5 rounded-md font-mono font-bold">
+                  {items.length}
+                </span>
+              </div>
 
-                      <div className="flex items-center gap-1.5 mb-2.5">
-                        <span className={`inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-md border ${cs.bg} ${cs.text} ${cs.border}`}>
-                          {cs.emoji} {opp.cropType}
-                        </span>
-                        <span className="text-[9px] font-bold text-zinc-400 bg-zinc-900 border border-zinc-800 px-2 py-0.5 rounded-md font-mono">
-                          {formatNumber(opp.quantity_tn)} TN
-                        </span>
-                      </div>
-
-                      <div className={`w-full rounded-lg px-3 py-2 ${
-                        isOferta ? 'bg-green-500/8 border border-green-500/15' : 'bg-blue-500/8 border border-blue-500/15'
-                      }`}>
-                        <p className={`text-xs font-black font-mono ${isOferta ? 'text-green-400' : 'text-blue-400'}`}>
-                          {opp.priceMode === 'a_negociar' ? 'A negociar' : `$${formatNumber(opp.price_usd)} USD/tn`}
-                        </p>
-                        {opp.location && (
-                          <p className="text-[9px] text-zinc-600 mt-0.5 truncate">📍 {opp.location}</p>
-                        )}
-                      </div>
-
-                      {(opp.nextAction || opp.expiresAt || opp.lostReason) && (
-                        <div className="space-y-0.5 text-[9px] text-zinc-500 border-t border-zinc-800 mt-2.5 pt-2">
-                          {opp.nextAction && <p className="truncate"><span className="text-zinc-600">▶</span> {opp.nextAction}</p>}
-                          {opp.expiresAt && <p><span className="text-zinc-600">⏱</span> Vence {format(new Date(opp.expiresAt), 'dd/MM/yy')}</p>}
-                          {opp.lostReason && <p className="text-red-400"><span className="text-zinc-600">✕</span> {opp.lostReason}</p>}
+              <div className="flex-1 flex flex-col gap-3 overflow-y-auto max-h-[600px] pr-1.5 scrollbar-thin">
+                {items.length === 0 ? (
+                  <div className="h-32 flex flex-col items-center justify-center border-2 border-dashed border-zinc-800 rounded-xl text-zinc-550 text-xs gap-1.5">
+                    <span>📥</span>
+                    <span>Sin operaciones aquí</span>
+                  </div>
+                ) : (
+                  items.map(opp => {
+                    const client = clients.find(c => c.id === opp.clientId);
+                    const clientName = client?.name || 'Desconocido';
+                    const clientPhone = client?.phone;
+                    const cs = getCropStyle(opp.cropType);
+                    const isOferta = opp.type === 'oferta';
+                    
+                    return (
+                      <div
+                        key={opp.id}
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData('text/plain', opp.id);
+                          e.dataTransfer.effectAllowed = 'move';
+                        }}
+                        className="bg-[#1f1f1f] hover:bg-[#252525] border border-[#2e2e2e] hover:border-[#3a3a3a] rounded-xl p-3.5 transition-all duration-150 cursor-grab active:cursor-grabbing shadow-md relative group"
+                      >
+                        <div className="flex items-center justify-between mb-2.5">
+                          <span className="text-[9px] text-zinc-600 font-mono">
+                            {opp.createdAt ? format(new Date(opp.createdAt), 'dd/MM/yy') : '-'}
+                          </span>
+                          <span className={`text-[9px] uppercase font-black px-2 py-0.5 rounded-md border ${
+                            isOferta
+                              ? 'bg-green-500/10 text-green-400 border-green-500/20'
+                              : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                          }`}>
+                            {isOferta ? '↑ Venta' : '↓ Compra'}
+                          </span>
                         </div>
-                      )}
 
-                      {/* Action overlay on hover */}
-                      <div className="absolute top-2.5 right-2.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
-                        {clientPhone && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleOpenWaModal(clientPhone, opp.clientId, clientName, {
-                                cropType: opp.cropType, quantity_tn: opp.quantity_tn,
-                                price_usd: opp.price_usd, location: opp.location
-                              });
-                            }}
-                            className="p-1.5 text-green-400 bg-[#1f1f1f] hover:bg-green-500/10 rounded-lg transition-colors cursor-pointer border border-zinc-800"
-                            title="WhatsApp"
-                          >
-                            <Phone className="w-3 h-3" />
-                          </button>
+                        <h5 className="font-black text-xs text-white truncate mb-1.5">{clientName}</h5>
+
+                        <div className="flex items-center gap-1.5 mb-2.5">
+                          <span className={`inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-md border ${cs.bg} ${cs.text} ${cs.border}`}>
+                            {cs.emoji} {opp.cropType}
+                          </span>
+                          <span className="text-[9px] font-bold text-zinc-400 bg-zinc-900 border border-zinc-800 px-2 py-0.5 rounded-md font-mono">
+                            {formatNumber(opp.quantity_tn)} TN
+                          </span>
+                        </div>
+
+                        <div className={`w-full rounded-lg px-3 py-2 ${
+                          isOferta ? 'bg-green-500/8 border border-green-500/15' : 'bg-blue-500/8 border border-blue-500/15'
+                        }`}>
+                          <p className={`text-xs font-black font-mono ${isOferta ? 'text-green-400' : 'text-blue-400'}`}>
+                            {opp.priceMode === 'a_negociar' ? 'A negociar' : `$${formatNumber(opp.price_usd)} USD/tn`}
+                          </p>
+                          {opp.location && (
+                            <p className="text-[9px] text-zinc-600 mt-0.5 truncate">📍 {opp.location}</p>
+                          )}
+                        </div>
+
+                        {(opp.nextAction || opp.expiresAt || opp.lostReason) && (
+                          <div className="space-y-0.5 text-[9px] text-zinc-500 border-t border-zinc-800 mt-2.5 pt-2">
+                            {opp.nextAction && <p className="truncate"><span className="text-zinc-600">▶</span> {opp.nextAction}</p>}
+                            {opp.expiresAt && <p><span className="text-zinc-600">⏱</span> Vence {format(new Date(opp.expiresAt), 'dd/MM/yy')}</p>}
+                            {opp.lostReason && <p className="text-red-400"><span className="text-zinc-600">✕</span> {opp.lostReason}</p>}
+                          </div>
                         )}
-                        <button
-                          onClick={(e) => { e.stopPropagation(); deleteOpp(opp.id); }}
-                          className="p-1.5 text-zinc-500 bg-[#1f1f1f] hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer border border-zinc-800"
-                          title="Eliminar"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
+
+                        {/* Mobile Status Mover & Quick Action Bar */}
+                        <div className="mt-3 pt-2.5 border-t border-zinc-800/80 flex items-center justify-between gap-2">
+                          <select
+                            value={opp.status || 'abierta'}
+                            onChange={(e) => handleStatusChange(opp.id, e.target.value)}
+                            className="bg-zinc-900 border border-zinc-700/80 text-zinc-300 text-[10px] rounded-lg px-2 py-1 outline-none font-mono cursor-pointer flex-1 max-w-[140px]"
+                          >
+                            <option value="abierta">📂 Abierta</option>
+                            <option value="negociacion">🤝 Negociación</option>
+                            <option value="esperando_confirmacion">⏳ Confirmación</option>
+                            <option value="ganada">🏆 Ganada</option>
+                            <option value="perdida">❌ Perdida</option>
+                            <option value="vencida">⌛ Vencida</option>
+                          </select>
+
+                          <div className="flex items-center gap-1">
+                            {clientPhone && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenWaModal(clientPhone, opp.clientId, clientName, {
+                                    cropType: opp.cropType, quantity_tn: opp.quantity_tn,
+                                    price_usd: opp.price_usd, location: opp.location
+                                  });
+                                }}
+                                className="p-1.5 text-green-400 bg-green-500/10 hover:bg-green-500/20 rounded-lg transition-colors cursor-pointer border border-green-500/20"
+                                title="WhatsApp"
+                              >
+                                <Phone className="w-3 h-3" />
+                              </button>
+                            )}
+                            <button
+                              onClick={(e) => { e.stopPropagation(); deleteOpp(opp.id); }}
+                              className="p-1.5 text-zinc-400 bg-zinc-800 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer border border-zinc-700 hover:border-red-500/20"
+                              title="Eliminar"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+
                       </div>
-                    </div>
-                  );
-                })
-              )}
+                    );
+                  })
+                )}
+              </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }

@@ -143,5 +143,52 @@ body {
   filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7) !important;
 }
 
+/* Mobile & Touch Optimizations */
+html, body {
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
 
+.pb-safe {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
 
+.pt-safe {
+  padding-top: max(0.5rem, env(safe-area-inset-top));
+}
+
+/* Scrollbar utilities for mobile & desktop */
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: #333333 transparent;
+}
+.scrollbar-thin::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #333333;
+  border-radius: 4px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: #555555;
+}
+
+/* Mobile touch targets & active feedback */
+@media (max-width: 640px) {
+  input, select, textarea, button {
+    font-size: 16px; /* Prevents auto-zoom in iOS Safari */
+  }
+}

@@ -373,68 +373,68 @@ export function Dashboard() {
   return (
     <div className="space-y-6">
       {/* Header con indicadores de estado de Mercado */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-zinc-900 to-[#1e1e1e] border border-[#333] p-5 rounded-2xl shadow-lg">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-zinc-900 to-[#1e1e1e] border border-[#333] p-4 sm:p-5 rounded-2xl shadow-lg">
         <div>
           <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2">
             <span>🌾</span> AgroSys Terminal <span className="text-xs bg-green-500/10 border border-green-500/25 px-2 py-0.5 rounded text-green-400 font-mono">EN VIVO</span>
           </h1>
           <p className="text-xs sm:text-sm text-gray-400 mt-1">Sala de intermediación, operaciones confirmadas y cotizaciones arbitrales</p>
         </div>
-        <div className="flex items-center gap-2 text-xs text-gray-400 font-mono bg-zinc-800/50 border border-zinc-700/55 px-3.5 py-2 rounded-xl">
+        <div className="flex items-center gap-2 text-xs text-gray-400 font-mono bg-zinc-800/50 border border-zinc-700/55 px-3.5 py-2 rounded-xl self-start sm:self-auto">
           <span className="w-2 h-2 rounded-full bg-green-400 animate-ping inline-block mr-1"></span>
-          <span>Broker: Mesa de Granos Activa</span>
+          <span>Broker: Mesa Activa</span>
         </div>
       </div>
 
-      {/* KPI Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+      {/* KPI Stats Grid - 2 columns on mobile, 4 on desktop */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         {[
           { 
-            label: 'Volumen Ofertado (tn)', 
-            val: formatNumber(volOfertas), 
-            sub: `${ofertasAbiertas.length} pedidos activos`,
+            label: 'Vol. Ofertado', 
+            val: `${formatNumber(volOfertas)} TN`, 
+            sub: `${ofertasAbiertas.length} ofertas activas`,
             icon: ArrowUpRight, 
             color: 'text-green-400', 
             bg: 'bg-green-500/10',
             border: 'border-green-500/10'
           },
           { 
-            label: 'Volumen Demandado (tn)', 
-            val: formatNumber(volDemandas), 
-            sub: `${demandasAbiertas.length} solicitudes activas`,
+            label: 'Vol. Demandado', 
+            val: `${formatNumber(volDemandas)} TN`, 
+            sub: `${demandasAbiertas.length} demandas activas`,
             icon: ArrowDownRight, 
             color: 'text-blue-400', 
             bg: 'bg-blue-500/10',
             border: 'border-blue-500/10'
           },
           { 
-            label: 'Negocios Cerrados', 
+            label: 'Boletos Cerrados', 
             val: `${totalClosedDeals} deals`, 
-            sub: `${formatNumber(volCerrado)} TN intermediadas 🤝`,
+            sub: `${formatNumber(volCerrado)} TN cerradas`,
             icon: Award, 
             color: 'text-purple-400', 
             bg: 'bg-purple-500/10',
             border: 'border-purple-500/10'
           },
           { 
-            label: 'Honorarios Estimados', 
+            label: 'Honorarios Est.', 
             val: formatCurrency(honorariosTotales), 
-            sub: 'Comisiones acumuladas',
+            sub: 'Comisiones cobradas',
             icon: DollarSign, 
             color: 'text-amber-400', 
             bg: 'bg-amber-500/10',
             border: 'border-amber-500/10'
           }
         ].map((kpi, i) => (
-          <div key={i} className={`bg-[#1e1e1e] border ${kpi.border} p-5 rounded-2xl shadow-md transition-all hover:scale-[1.01]`}>
+          <div key={i} className={`bg-[#1e1e1e] border ${kpi.border} p-3 sm:p-5 rounded-2xl shadow-md transition-all hover:scale-[1.01]`}>
             <div className="flex justify-between items-start">
-              <div>
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5">{kpi.label}</p>
-                <div className="text-2xl sm:text-3xl font-black text-white tracking-tight">{kpi.val}</div>
-                <p className="text-xs text-gray-400 mt-1 font-mono">{kpi.sub}</p>
+              <div className="min-w-0 flex-1 mr-1.5">
+                <p className="text-[10px] sm:text-xs font-bold text-gray-400 uppercase tracking-wider mb-1 truncate">{kpi.label}</p>
+                <div className="text-base sm:text-2xl lg:text-3xl font-black text-white tracking-tight truncate">{kpi.val}</div>
+                <p className="text-[9px] sm:text-xs text-gray-400 mt-1 font-mono truncate">{kpi.sub}</p>
               </div>
-              <div className={`p-3 rounded-xl ${kpi.bg}`}>
-                <kpi.icon className={`w-5 h-5 ${kpi.color}`} />
+              <div className={`p-2 sm:p-3 rounded-xl shrink-0 ${kpi.bg}`}>
+                <kpi.icon className={`w-3.5 h-3.5 sm:w-5 sm:h-5 ${kpi.color}`} />
               </div>
             </div>
           </div>
@@ -447,7 +447,7 @@ export function Dashboard() {
       {/* Secciones de Gráficos, Pizarra de Precios, Agenda de Campo y Auditoría */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Col 1: Precios de Pizarra */}
-        <div className="bg-[#1e1e1e] border border-[#333] rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col justify-between">
+        <div className="bg-[#1e1e1e] border border-[#333] rounded-2xl p-4 sm:p-6 shadow-sm flex flex-col justify-between">
           <div>
             <div className="flex justify-between items-center mb-6">
               <div>
@@ -809,47 +809,35 @@ export function Dashboard() {
           )}
         </div>
       </div>
-
-      {/* Deal Pipeline Terminal - HISTORICO DE NEGOCIOS CERRADOS */}
+{/* Deal Pipeline Terminal - HISTORICO DE NEGOCIOS CERRADOS */}
       <div className="bg-[#1e1e1e] border border-[#333] rounded-2xl overflow-hidden shadow-lg">
-        <div className="p-5 bg-gradient-to-r from-[#212121] to-[#252525] border-b border-[#333] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="p-4 sm:p-5 bg-gradient-to-r from-[#212121] to-[#252525] border-b border-[#333] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h3 className="text-sm sm:text-base font-black text-white flex items-center gap-2">
               <span>🤝</span> Registro de Negocios Cerrados (Boletos Generados)
             </h3>
             <p className="text-xs text-gray-400 mt-0.5 font-mono">Contratos cerrados en la mesa de AgroSys</p>
           </div>
-          <div className="text-xs font-bold text-gray-400 bg-zinc-800 border border-zinc-700 rounded-lg px-2.5 py-1.5 self-start">
+          <div className="text-xs font-bold text-gray-400 bg-zinc-800 border border-zinc-700 rounded-lg px-2.5 py-1.5 self-start sm:self-auto">
             Total: {totalClosedDeals} boletos emitidos
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div>
           {deals.length === 0 ? (
-            <div className="p-10 text-center max-w-xl mx-auto">
-              <div className="bg-zinc-800/60 w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-3.5 border border-zinc-700">
-                <CheckCircle className="w-6 h-6 text-gray-500" />
+            <div className="p-8 sm:p-10 text-center max-w-xl mx-auto">
+              <div className="bg-zinc-800/60 w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center mx-auto mb-3.5 border border-zinc-700">
+                <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-gray-500" />
               </div>
               <h4 className="text-sm font-bold text-white mb-1.5">Sin contratos liquidados aún</h4>
-              <p className="text-xs text-zinc-400 leading-relaxed mb-4">
+              <p className="text-xs text-zinc-400 leading-relaxed">
                 Cuando una Oferta y Demanda coinciden, puedes emparejarlas desde el módulo de <strong>Cruces Inteligentes</strong> en la pestaña Oportunidades para liquidar la operación al instante.
               </p>
             </div>
           ) : (
-            <table className="w-full text-left border-collapse min-w-[700px]">
-              <thead>
-                <tr className="bg-[#1a1a1a] border-b border-[#2d2d2d] text-zinc-400 text-[11px] uppercase tracking-wider font-semibold">
-                  <th className="p-4">Boleto ID</th>
-                  <th className="p-4">Fecha</th>
-                  <th className="p-4">Grano</th>
-                  <th className="p-4">Volumen</th>
-                  <th className="p-4">Intervinientes (Vendedor → Comprador)</th>
-                  <th className="p-4">Precios Operación</th>
-                  <th className="p-4 text-center">Estado Operación</th>
-                  <th className="p-4 text-right">Comisión Cobrada</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#2d2d2d] text-xs">
+            <>
+              {/* Mobile Cards View for Small Screens */}
+              <div className="md:hidden divide-y divide-[#2d2d2d] p-3 space-y-3">
                 {deals.map((deal) => {
                   const hasLpg = (deal as any).liq_status === 'liquidado';
                   const opStatus = (deal as any).operation_status || 'abierta';
@@ -857,34 +845,41 @@ export function Dashboard() {
                   const delStatus = (deal as any).delivery_status || 'pendiente';
 
                   return (
-                    <tr key={deal.id} className="hover:bg-zinc-800/30 transition-colors">
-                      <td className="p-4 font-mono font-bold text-purple-400 uppercase">
-                        #{deal.id.substring(0, 6)}
-                      </td>
-                      <td className="p-4 text-zinc-400 font-mono">
-                        {deal.createdAt ? format(deal.createdAt, 'dd/MM/yyyy HH:mm') : '-'}
-                      </td>
-                      <td className="p-4 font-bold capitalize text-white">
-                        🌾 {deal.cropType}
-                      </td>
-                      <td className="p-4 font-mono font-bold text-zinc-200">
-                        {formatNumber(deal.quantity_tn)} tn
-                      </td>
-                      <td className="p-4">
-                        <div className="flex items-center gap-2">
-                          <span className="text-green-400 font-semibold">{deal.sellerName}</span>
-                          <span className="text-zinc-500">→</span>
-                          <span className="text-blue-400 font-semibold">{deal.buyerName}</span>
+                    <div key={deal.id} className="bg-[#222] border border-[#2e2e2e] rounded-xl p-3.5 space-y-2.5 shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono font-bold text-purple-400 text-xs">
+                          #{deal.id.substring(0, 6)}
+                        </span>
+                        <span className="text-[10px] text-zinc-400 font-mono">
+                          {deal.createdAt ? format(deal.createdAt, 'dd/MM/yy HH:mm') : '-'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-base">🌾</span>
+                          <span className="font-bold text-white text-xs capitalize">{deal.cropType}</span>
                         </div>
-                      </td>
-                      <td className="p-4 font-mono">
-                        <div className="flex flex-col">
-                          <span>Vta: <strong className="text-green-500">${deal.price_seller}/tn</strong></span>
-                          <span>Cpa: <strong className="text-blue-500">${deal.price_buyer}/tn</strong></span>
+                        <span className="font-mono font-black text-xs text-zinc-200 bg-[#181818] px-2 py-0.5 rounded border border-zinc-800">
+                          {formatNumber(deal.quantity_tn)} TN
+                        </span>
+                      </div>
+
+                      <div className="text-xs space-y-1 bg-[#181818] p-2.5 rounded-lg border border-[#2a2a2a]">
+                        <div className="flex items-center justify-between text-green-400">
+                          <span className="text-zinc-500 text-[10px]">Vendedor:</span>
+                          <span className="font-bold truncate max-w-[160px]">{deal.sellerName}</span>
+                          <span className="font-mono text-zinc-300">${deal.price_seller}/tn</span>
                         </div>
-                      </td>
-                      <td className="p-4 text-center">
-                        <span className={`px-2.5 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider font-mono border ${
+                        <div className="flex items-center justify-between text-blue-400">
+                          <span className="text-zinc-500 text-[10px]">Comprador:</span>
+                          <span className="font-bold truncate max-w-[160px]">{deal.buyerName}</span>
+                          <span className="font-mono text-zinc-300">${deal.price_buyer}/tn</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-1">
+                        <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider font-mono border ${
                           opStatus === 'ganada' ? 'bg-green-900/20 text-green-400 border-green-800' :
                           opStatus === 'perdida' || opStatus === 'vencida' ? 'bg-zinc-800 text-zinc-500 border-zinc-700' :
                           hasLpg ? 'bg-green-500/10 text-green-400 border-green-500/20' :
@@ -902,15 +897,98 @@ export function Dashboard() {
                            logStatus === 'cupo_asignado' ? 'Cupo Listo 📦' :
                            'Pendiente ⏳'}
                         </span>
-                      </td>
-                      <td className="p-4 text-right font-mono font-extrabold text-amber-400 text-sm">
-                        {formatCurrency(deal.totalCommission)}
-                      </td>
-                    </tr>
+
+                        <div className="text-right">
+                          <span className="text-[10px] text-zinc-500 mr-1">Comisión:</span>
+                          <span className="font-mono font-black text-amber-400 text-xs">
+                            {formatCurrency(deal.totalCommission)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
                   );
                 })}
-              </tbody>
-            </table>
+              </div>
+
+              {/* Desktop Table View */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-left border-collapse min-w-[700px]">
+                  <thead>
+                    <tr className="bg-[#1a1a1a] border-b border-[#2d2d2d] text-zinc-400 text-[11px] uppercase tracking-wider font-semibold">
+                      <th className="p-4">Boleto ID</th>
+                      <th className="p-4">Fecha</th>
+                      <th className="p-4">Grano</th>
+                      <th className="p-4">Volumen</th>
+                      <th className="p-4">Intervinientes (Vendedor → Comprador)</th>
+                      <th className="p-4">Precios Operación</th>
+                      <th className="p-4 text-center">Estado Operación</th>
+                      <th className="p-4 text-right">Comisión Cobrada</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#2d2d2d] text-xs">
+                    {deals.map((deal) => {
+                      const hasLpg = (deal as any).liq_status === 'liquidado';
+                      const opStatus = (deal as any).operation_status || 'abierta';
+                      const logStatus = (deal as any).logistics_status || 'pendiente';
+                      const delStatus = (deal as any).delivery_status || 'pendiente';
+
+                      return (
+                        <tr key={deal.id} className="hover:bg-zinc-800/30 transition-colors">
+                          <td className="p-4 font-mono font-bold text-purple-400 uppercase">
+                            #{deal.id.substring(0, 6)}
+                          </td>
+                          <td className="p-4 text-zinc-400 font-mono">
+                            {deal.createdAt ? format(deal.createdAt, 'dd/MM/yyyy HH:mm') : '-'}
+                          </td>
+                          <td className="p-4 font-bold capitalize text-white">
+                            🌾 {deal.cropType}
+                          </td>
+                          <td className="p-4 font-mono font-bold text-zinc-200">
+                            {formatNumber(deal.quantity_tn)} tn
+                          </td>
+                          <td className="p-4">
+                            <div className="flex items-center gap-2">
+                              <span className="text-green-400 font-semibold">{deal.sellerName}</span>
+                              <span className="text-zinc-500">→</span>
+                              <span className="text-blue-400 font-semibold">{deal.buyerName}</span>
+                            </div>
+                          </td>
+                          <td className="p-4 font-mono">
+                            <div className="flex flex-col">
+                              <span>Vta: <strong className="text-green-500">${deal.price_seller}/tn</strong></span>
+                              <span>Cpa: <strong className="text-blue-500">${deal.price_buyer}/tn</strong></span>
+                            </div>
+                          </td>
+                          <td className="p-4 text-center">
+                            <span className={`px-2.5 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider font-mono border ${
+                              opStatus === 'ganada' ? 'bg-green-900/20 text-green-400 border-green-800' :
+                              opStatus === 'perdida' || opStatus === 'vencida' ? 'bg-zinc-800 text-zinc-500 border-zinc-700' :
+                              hasLpg ? 'bg-green-500/10 text-green-400 border-green-500/20' :
+                              delStatus === 'entregado' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
+                              logStatus === 'en_transito' ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' :
+                              logStatus === 'cupo_asignado' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                              'bg-red-500/10 text-red-400 border-red-500/20'
+                            }`}>
+                              {opStatus === 'ganada' ? 'Ganada' :
+                               opStatus === 'perdida' ? 'Perdida' :
+                               opStatus === 'vencida' ? 'Vencida' :
+                               hasLpg ? 'Liquidado 💵' :
+                               delStatus === 'entregado' ? 'Entregado ⚖️' :
+                               logStatus === 'en_transito' ? 'En Tránsito 🚚' :
+                               logStatus === 'cupo_asignado' ? 'Cupo Listo 📦' :
+                               'Pendiente ⏳'}
+                            </span>
+                          </td>
+                          <td className="p-4 text-right font-mono font-extrabold text-amber-400 text-sm">
+                            {formatCurrency(deal.totalCommission)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
       </div>
@@ -918,7 +996,7 @@ export function Dashboard() {
       {/* Cotizador de Cruces Modal */}
       {cotizadorModal.isOpen && cotizadorModal.match && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
-          <div className="bg-[#1e1e1e] border border-zinc-800 rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl p-6 text-left space-y-4 animate-scale-up font-sans">
+          <div className="bg-[#1e1e1e] border border-zinc-800 rounded-2xl max-w-lg w-full max-h-[92vh] overflow-y-auto shadow-2xl p-4 sm:p-6 text-left space-y-4 animate-scale-up font-sans">
             
             {/* Modal Title */}
             <div className="border-b border-[#2d2d2d] pb-3 flex justify-between items-center">

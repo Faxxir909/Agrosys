@@ -919,35 +919,35 @@ export function Clientes() {
               </div>
 
               {/* Botones de Navegación de Solapas (Tabs) */}
-              <div className="flex flex-wrap border-b border-[#333] gap-2 p-1 bg-[#161616] rounded-xl max-w-xl">
+              <div className="flex overflow-x-auto scrollbar-none border-b border-[#333] gap-1.5 p-1 bg-[#161616] rounded-xl max-w-xl">
                 <button 
                   onClick={() => setActiveTab('ficha')}
-                  className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1.5 ${activeTab === 'ficha' ? 'bg-[#2a2a2a] text-white font-bold shadow' : 'text-gray-400 hover:text-white'}`}
+                  className={`flex-1 min-w-[100px] py-2 px-2.5 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer ${activeTab === 'ficha' ? 'bg-[#2a2a2a] text-white font-bold shadow' : 'text-gray-400 hover:text-white'}`}
                 >
                   <User className="w-3.5 h-3.5" /> Ficha General
                 </button>
                 <button 
                   onClick={() => setActiveTab('granos')}
-                  className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1.5 ${activeTab === 'granos' ? 'bg-[#2a2a2a] text-white font-bold shadow' : 'text-gray-400 hover:text-white'}`}
+                  className={`flex-1 min-w-[90px] py-2 px-2.5 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer ${activeTab === 'granos' ? 'bg-[#2a2a2a] text-white font-bold shadow' : 'text-gray-400 hover:text-white'}`}
                 >
                   <Activity className="w-3.5 h-3.5" /> Negocios
                 </button>
                 <button 
                   onClick={() => setActiveTab('bitacora')}
-                  className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1.5 ${activeTab === 'bitacora' ? 'bg-[#2a2a2a] text-white font-bold shadow' : 'text-gray-400 hover:text-white'}`}
+                  className={`flex-1 min-w-[90px] py-2 px-2.5 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer ${activeTab === 'bitacora' ? 'bg-[#2a2a2a] text-white font-bold shadow' : 'text-gray-400 hover:text-white'}`}
                 >
                   <FileText className="w-3.5 h-3.5" /> Bitácora
                   {interactions.length > 0 && (
-                    <span className="bg-green-600 text-white font-bold rounded-full w-4.5 h-4.5 text-[9px] flex items-center justify-center select-none">{interactions.length}</span>
+                    <span className="bg-green-600 text-white font-bold rounded-full w-4 h-4 text-[9px] flex items-center justify-center select-none">{interactions.length}</span>
                   )}
                 </button>
                 <button 
                   onClick={() => setActiveTab('tareas')}
-                  className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1.5 ${activeTab === 'tareas' ? 'bg-[#2a2a2a] text-white font-bold shadow' : 'text-gray-400 hover:text-white'}`}
+                  className={`flex-1 min-w-[90px] py-2 px-2.5 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer ${activeTab === 'tareas' ? 'bg-[#2a2a2a] text-white font-bold shadow' : 'text-gray-400 hover:text-white'}`}
                 >
                   <Check className="w-3.5 h-3.5" /> Agenda
                   {clientTasks.filter(t => t.status === 'pendiente').length > 0 && (
-                    <span className="bg-amber-600 text-white font-bold rounded-full w-4.5 h-4.5 text-[9px] flex items-center justify-center select-none">
+                    <span className="bg-amber-600 text-white font-bold rounded-full w-4 h-4 text-[9px] flex items-center justify-center select-none">
                       {clientTasks.filter(t => t.status === 'pendiente').length}
                     </span>
                   )}
@@ -1855,7 +1855,7 @@ export function Clientes() {
                         type="button"
                         key={idx}
                         onClick={() => setSelectedCalendarDate(cell.dateString)}
-                        className={`min-h-[75px] p-1.5 rounded-xl border flex flex-col justify-between text-left transition-all relative ${
+                        className={`min-h-[50px] sm:min-h-[75px] p-1 sm:p-1.5 rounded-xl border flex flex-col justify-between text-left transition-all relative ${
                           cell.isPadding 
                             ? 'bg-[#151515]/30 border-[#222] text-gray-700' 
                             : 'bg-[#181818] hover:bg-[#202020] text-gray-300'
@@ -1869,7 +1869,7 @@ export function Clientes() {
                       >
                         {/* Day Number and Alert Badge */}
                         <div className="flex items-center justify-between w-full">
-                          <span className={`text-[11px] font-bold ${isToday ? 'text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded-md' : 'text-gray-400'}`}>
+                          <span className={`text-[10px] sm:text-[11px] font-bold ${isToday ? 'text-indigo-400 bg-indigo-500/10 px-1 sm:px-1.5 py-0.5 rounded-md' : 'text-gray-400'}`}>
                             {cell.day}
                           </span>
                           {hasPending && (
@@ -1877,8 +1877,21 @@ export function Clientes() {
                           )}
                         </div>
 
-                        {/* Task Previews */}
-                        <div className="mt-2 space-y-1 w-full overflow-hidden">
+                        {/* Mobile Dot Indicators */}
+                        <div className="sm:hidden flex gap-0.5 justify-center flex-wrap mt-1">
+                          {cellTasks.slice(0, 3).map(task => {
+                            let bulletColor = 'bg-gray-500';
+                            if (task.category === 'siembra') bulletColor = 'bg-emerald-500';
+                            if (task.category === 'cosecha') bulletColor = 'bg-yellow-500';
+                            if (task.category === 'cobro') bulletColor = 'bg-amber-600';
+                            if (task.category === 'documentacion') bulletColor = 'bg-blue-500';
+                            if (task.category === 'seguimiento') bulletColor = 'bg-indigo-500';
+                            return <span key={task.id} className={`w-1.5 h-1.5 rounded-full ${bulletColor}`} />;
+                          })}
+                        </div>
+
+                        {/* Desktop Task Previews */}
+                        <div className="hidden sm:block mt-2 space-y-1 w-full overflow-hidden">
                           {cellTasks.slice(0, 2).map(task => {
                             let bulletColor = 'bg-gray-500';
                             if (task.category === 'siembra') bulletColor = 'bg-emerald-500';
@@ -2202,64 +2215,64 @@ export function Clientes() {
         <div className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
           
           {/* 1. SECCIÓN: KPI DASHBOARD INTERACTIVO */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             
             {/* KPI 1: Clientes Activos / Totales */}
-            <div className="bg-[#1a1a1a] border border-[#333] rounded-2xl p-5 flex items-center justify-between shadow-sm relative overflow-hidden group hover:border-green-500/20 transition-all duration-300">
-              <div className="space-y-1">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Clientes Integrados</p>
-                <p className="text-3xl font-extrabold text-white tracking-tight">{computedStats.total}</p>
-                <p className="text-[10px] text-gray-400 font-medium">
-                  <span className="text-green-500 font-bold">{computedStats.activeQty}</span> activos en CRM
+            <div className="bg-[#1a1a1a] border border-[#333] rounded-2xl p-3.5 sm:p-5 flex items-center justify-between shadow-sm relative overflow-hidden group hover:border-green-500/20 transition-all duration-300">
+              <div className="space-y-0.5 sm:space-y-1 min-w-0">
+                <p className="text-[9px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-500 truncate">Clientes Total</p>
+                <p className="text-xl sm:text-3xl font-extrabold text-white tracking-tight">{computedStats.total}</p>
+                <p className="text-[9px] sm:text-[10px] text-gray-400 font-medium truncate">
+                  <span className="text-green-500 font-bold">{computedStats.activeQty}</span> activos
                 </p>
               </div>
-              <div className="p-3 bg-green-500/10 rounded-xl group-hover:scale-110 transition-transform">
-                <Users className="w-5 h-5 text-green-500" />
+              <div className="p-2 sm:p-3 bg-green-500/10 rounded-xl group-hover:scale-110 transition-transform shrink-0">
+                <Users className="w-4 h-4 sm:w-5 sm:h-5 text-green-500" />
               </div>
               <div className="absolute bottom-0 left-0 h-1 bg-green-600/30 w-full" />
             </div>
 
             {/* KPI 2: Superficie Administrada */}
-            <div className="bg-[#1a1a1a] border border-[#333] rounded-2xl p-5 flex items-center justify-between shadow-sm relative overflow-hidden group hover:border-[#10b981]/20 transition-all duration-300">
-              <div className="space-y-1">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Superficie Total</p>
-                <p className="text-3xl font-extrabold text-emerald-400 tracking-tight">
-                  {computedStats.totHectares.toLocaleString()} <span className="text-base font-normal text-gray-400">ha</span>
+            <div className="bg-[#1a1a1a] border border-[#333] rounded-2xl p-3.5 sm:p-5 flex items-center justify-between shadow-sm relative overflow-hidden group hover:border-[#10b981]/20 transition-all duration-300">
+              <div className="space-y-0.5 sm:space-y-1 min-w-0">
+                <p className="text-[9px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-500 truncate">Superficie Total</p>
+                <p className="text-xl sm:text-3xl font-extrabold text-emerald-400 tracking-tight truncate">
+                  {computedStats.totHectares.toLocaleString()} <span className="text-xs sm:text-base font-normal text-gray-400">ha</span>
                 </p>
-                <p className="text-[10px] text-gray-400 font-medium">Propias y Alquiladas</p>
+                <p className="text-[9px] sm:text-[10px] text-gray-400 font-medium truncate">Propias y Alquiladas</p>
               </div>
-              <div className="p-3 bg-emerald-500/10 rounded-xl group-hover:scale-110 transition-transform">
-                <MapPin className="w-5 h-5 text-emerald-400" />
+              <div className="p-2 sm:p-3 bg-emerald-500/10 rounded-xl group-hover:scale-110 transition-transform shrink-0">
+                <MapPin className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400" />
               </div>
               <div className="absolute bottom-0 left-0 h-1 bg-emerald-600/30 w-full" />
             </div>
 
             {/* KPI 3: Estimación de Consumo Insumos */}
-            <div className="bg-[#1a1a1a] border border-[#333] rounded-2xl p-5 flex items-center justify-between shadow-sm relative overflow-hidden group hover:border-yellow-500/20 transition-all duration-300">
-              <div className="space-y-1">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Potencial de Consumo</p>
-                <p className="text-3xl font-extrabold text-yellow-500 tracking-tight">
+            <div className="bg-[#1a1a1a] border border-[#333] rounded-2xl p-3.5 sm:p-5 flex items-center justify-between shadow-sm relative overflow-hidden group hover:border-yellow-500/20 transition-all duration-300">
+              <div className="space-y-0.5 sm:space-y-1 min-w-0">
+                <p className="text-[9px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-500 truncate">Potencial Insumos</p>
+                <p className="text-lg sm:text-3xl font-extrabold text-yellow-500 tracking-tight truncate">
                   USD {computedStats.totPotential.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                 </p>
-                <p className="text-[10px] text-gray-400 font-medium">Agroquímicos + Fertilizantes</p>
+                <p className="text-[9px] sm:text-[10px] text-gray-400 font-medium truncate">Agroquímicos</p>
               </div>
-              <div className="p-3 bg-yellow-500/10 rounded-xl group-hover:scale-110 transition-transform">
-                <Award className="w-5 h-5 text-yellow-500" />
+              <div className="p-2 sm:p-3 bg-yellow-500/10 rounded-xl group-hover:scale-110 transition-transform shrink-0">
+                <Award className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-500" />
               </div>
               <div className="absolute bottom-0 left-0 h-1 bg-yellow-600/30 w-full" />
             </div>
 
             {/* KPI 4: Tasa de Relevamiento */}
-            <div className="bg-[#1a1a1a] border border-[#333] rounded-2xl p-5 flex items-center justify-between shadow-sm relative overflow-hidden group hover:border-indigo-500/20 transition-all duration-300">
-              <div className="space-y-1">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Socio Relevado</p>
-                <p className="text-3xl font-extrabold text-indigo-400 tracking-tight">{computedStats.relevamientoPct}%</p>
-                <p className="text-[10px] text-gray-400 font-medium">
-                  <span className="text-indigo-400 font-bold">{computedStats.relevadoQty}</span> relevados por Cooperativa
+            <div className="bg-[#1a1a1a] border border-[#333] rounded-2xl p-3.5 sm:p-5 flex items-center justify-between shadow-sm relative overflow-hidden group hover:border-indigo-500/20 transition-all duration-300">
+              <div className="space-y-0.5 sm:space-y-1 min-w-0">
+                <p className="text-[9px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-500 truncate">Socio Relevado</p>
+                <p className="text-xl sm:text-3xl font-extrabold text-indigo-400 tracking-tight">{computedStats.relevamientoPct}%</p>
+                <p className="text-[9px] sm:text-[10px] text-gray-400 font-medium truncate">
+                  <span className="text-indigo-400 font-bold">{computedStats.relevadoQty}</span> socios
                 </p>
               </div>
-              <div className="p-3 bg-indigo-500/10 rounded-xl group-hover:scale-110 transition-transform">
-                <CheckCircle2 className="w-5 h-5 text-indigo-400" />
+              <div className="p-2 sm:p-3 bg-indigo-500/10 rounded-xl group-hover:scale-110 transition-transform shrink-0">
+                <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-400" />
               </div>
               <div className="absolute bottom-0 left-0 h-1 bg-indigo-600/30 w-full" />
             </div>

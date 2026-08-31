@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
+import { BottomNav } from './BottomNav';
 import { useUI } from '../contexts/UIContext';
 import { cn } from '../lib/utils';
 
@@ -17,10 +18,12 @@ export function Layout() {
         )}
       >
         <Topbar />
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-auto w-full">
+        <main className="flex-1 p-3.5 sm:p-6 lg:p-8 pb-24 lg:pb-8 overflow-x-hidden overflow-y-auto w-full max-w-full">
           <Outlet />
         </main>
       </div>
+      <BottomNav />
     </div>
   );
 }
+

@@ -58,7 +58,7 @@ export function NotificationsDropdown() {
       </div>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 bg-[#1e1e1e] border border-[#333] rounded-xl shadow-2xl z-50 overflow-hidden">
+        <div className="absolute right-0 mt-2 w-[calc(100vw-2rem)] max-w-xs sm:w-80 bg-[#1e1e1e] border border-[#333] rounded-xl shadow-2xl z-50 overflow-hidden animate-scale-up">
           <div className="p-4 border-b border-[#333] flex justify-between items-center bg-[#252525]">
             <h3 className="font-medium text-white">Notificaciones</h3>
             <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full font-medium">
