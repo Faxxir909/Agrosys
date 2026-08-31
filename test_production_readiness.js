@@ -32,7 +32,7 @@ async function checkProductionReadiness() {
     try {
       const ai = new GoogleGenAI({ apiKey: geminiKey });
       const resp = await ai.models.generateContent({
-        model: 'gemini-3.6-flash',
+        model: 'gemini-2.5-flash',
         contents: 'Responde solo la palabra: OK'
       });
       if (resp.text?.includes('OK')) {

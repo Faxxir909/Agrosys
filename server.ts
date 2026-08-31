@@ -1,6 +1,5 @@
 import express from 'express';
 import cors from 'cors';
-import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
 
 import path from 'path';
@@ -195,38 +194,6 @@ app.post('/api/whatsapp/settings', async (req, res) => {
     }
     notifyClients('whatsapp-settings', whatsappSettings);
     res.json({ success: true, settings: whatsappSettings });
-
-// ----------------------------------------------------
-// Personal WhatsApp Web (Baileys) Routes
-// ----------------------------------------------------
-app.get('/api/whatsapp/status', (req, res) => {
-  res.json(getWhatsAppStatus());
-});
-
-app.post('/api/whatsapp/start', async (req, res) => {
-  try {
-    const status = getWhatsAppStatus();
-    if (status.status !== 'connected' && status.status !== 'connecting') {
-      startWhatsAppConnection().catch(console.error);
-    }
-    res.json({ success: true, status: 'connecting' });
-  } catch (err) {
-    console.error('Warning starting whatsapp', err);
-    res.status(500).json({ error: 'failed to start' });
-  }
-});
-
-app.post('/api/whatsapp/reset', async (req, res) => {
-  try {
-    await resetWhatsAppConnection();
-    res.json({ success: true, status: 'disconnected' });
-  } catch (err) {
-    console.error('Error resetting WhatsApp', err);
-    res.status(500).json({ error: 'failed to reset' });
-  }
-});
-
-
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -2208,7 +2175,7 @@ async function startServer() {
     throw new Error('JWT_SECRET es obligatorio y debe tener al menos 32 caracteres.');
   }
   if (!WEBHOOK_VERIFY_TOKEN) {
-    throw new Error('WHATSAPP_VERIFY_TOKEN es obligatorio.');
+    console.warn('[WARN] WHATSAPP_VERIFY_TOKEN no definido. El webhook de Meta no funcionará.');
   }
   
   await initializeDatabase();
