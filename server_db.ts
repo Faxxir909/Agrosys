@@ -6,8 +6,8 @@ dotenv.config();
 
 function hashPassword(password: string): string {
   const salt = crypto.randomBytes(16).toString('hex');
-  const hash = crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
-  return `${salt}:${hash}`;
+  const hash = crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
+  return `v2:${salt}:${hash}`;
 }
 
 const connectionString = process.env.DATABASE_URL;
@@ -726,6 +726,101 @@ export async function initializeDatabase() {
           ('default_boleto', 'Confirmación de Boleto', 'Hola {{nombre}}, confirmamos la operación de {{toneladas}} TN de {{grano}} a un precio de {{precio}} USD/tn. Saludos, AgroSys.', 'GLOBAL'),
           ('default_alerta', 'Alerta de Precio', 'Estimado/a {{nombre}}, le informamos que el valor del grano {{grano}} alcanzó los {{precio}} USD/tn en Rosario. ¿Desea fijar venta?', 'GLOBAL'),
           ('default_saludo', 'Saludo Comercial', 'Hola {{nombre}}, ¿cómo está? Nos comunicamos de la mesa de AgroSys para consultarle si tiene ofertas de venta o demandas para la campaña.', 'GLOBAL')
+        `);
+      }
+
+      // Ensure default admin / broker user exists in Postgres
+      const userCheck = await dbQuery('SELECT id FROM users WHERE LOWER(email) = $1', ['broker@agrosys.com']);
+      if (userCheck.rows.length === 0) {
+        const defaultHash = hashPassword('123456');
+        await dbQuery(
+          'INSERT INTO users (id, email, name, role, password_hash) VALUES ($1, $2, $3, $4, $5)',
+          ['dev_user_broker', 'broker@agrosys.com', 'Corredor AgroSys', 'broker', defaultHash]
+        );
+        console.log('[DB] Seeded default Postgres user: broker@agrosys.com / 123456');
+      } else {
+        const defaultHash = hashPassword('123456');
+        await dbQuery('UPDATE users SET password_hash = $1 WHERE LOWER(email) = $2 AND (password_hash IS NULL OR password_hash = \'\')', [defaultHash, 'broker@agrosys.com']);
+      }
+
+      // Seed Pizarra prices if empty
+      const pizarraCheck = await dbQuery('SELECT id FROM pizarra_prices LIMIT 1');
+      if (pizarraCheck.rows.length === 0) {
+        const today = new Date();
+        for (let i = 9; i >= 0; i--) {
+          const date = new Date(today);
+          date.setDate(today.getDate() - i);
+          const rand = Math.sin(i) * 5;
+          await dbQuery(
+            'INSERT INTO pizarra_prices (id, soja, maiz, trigo, sorgo, girasol, source, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
+            [
+              `pizarra_seed_${i}`,
+              Math.round(280 + rand),
+              Math.round(160 - rand * 0.6),
+              Math.round(195 + rand * 0.8),
+              Math.round(145 + rand * 0.4),
+              Math.round(310 + rand * 1.2),
+              'Cámara Arbitral de Rosario / MATba - USD de referencia oficial',
+              date
+            ]
+          );
+        }
+      }
+
+      // Seed demo clients and operational data if empty
+      const clientsCheck = await dbQuery('SELECT id FROM clients LIMIT 1');
+      if (clientsCheck.rows.length === 0) {
+        await dbQuery(`
+          INSERT INTO clients (id, name, type, phone, email, cuit, status, notes, location, next_contact_date, last_contact_date, metadata, owner_id) VALUES
+          ('client_la_estela', 'Estancia La Estela S.A.', 'productor', '+5493516543210', 'contacto@laestela.com.ar', '20-12345678-9', 'activo', 'Productor líder de la zona de Río Cuarto. Excelente cumplimiento de contratos y rotación de cultivos.', '{"latitude": -33.12, "longitude": -64.35, "address": "Río Cuarto, Córdoba"}', NOW() + INTERVAL '3 days', NOW() - INTERVAL '5 days', '{"precio_objetivo_soja": 310, "precio_objetivo_maiz": 160, "hasSoja": 250, "hasMaiz": 180}', 'GLOBAL'),
+          ('client_el_ceibo', 'Agropecuaria El Ceibo SRL', 'productor', '+5493415876543', 'administracion@elceibo.com', '20-22345678-9', 'activo', 'Establecimiento mixto de alta productividad en Venado Tuerto. Interesado en fijar precios forwards de soja.', '{"latitude": -33.74, "longitude": -61.97, "address": "Venado Tuerto, Santa Fe"}', NOW() + INTERVAL '2 days', NOW() - INTERVAL '10 days', '{"precio_objetivo_soja": 320, "precio_objetivo_trigo": 215, "hasSoja": 400, "hasTrigo": 150}', 'GLOBAL'),
+          ('client_pergamino', 'Cooperativa Agrícola de Pergamino', 'acopio', '+5492477123456', 'cereales@coop-pergamino.com.ar', '30-55443322-1', 'activo', 'Acopio cooperativo de Pergamino. Busca cerrar cupos de maíz urgentes en puertos del Up-River.', '{"latitude": -33.89, "longitude": -60.57, "address": "Pergamino, Buenos Aires"}', NOW() + INTERVAL '1 day', NOW() - INTERVAL '2 days', '{"precio_objetivo_maiz": 165, "precio_objetivo_trigo": 210, "hasMaiz": 300, "hasTrigo": 200}', 'GLOBAL'),
+          ('client_spinetta', 'Luis Spinetta e Hijos', 'productor', '+5493419998888', 'luis.spinetta@gmail.com', '20-11223344-5', 'activo', 'Productor tradicional de la zona de Casilda. Prefiere operar soja disponible con entrega en San Lorenzo.', '{"latitude": -33.04, "longitude": -61.16, "address": "Casilda, Santa Fe"}', NOW() + INTERVAL '5 days', NOW() - INTERVAL '3 days', '{"precio_objetivo_soja": 315, "hasSoja": 120, "hasMaiz": 90}', 'GLOBAL'),
+          ('client_bunge', 'Bunge Argentina S.A.', 'exportador', '+5493476443322', 'mesadegranos@bunge.com.ar', '30-99887766-5', 'activo', 'Terminal portuaria y fábrica de molienda en PGSM. Comprador de soja y maíz a gran escala para exportación.', '{"latitude": -32.72, "longitude": -60.73, "address": "San Lorenzo, Santa Fe"}', NULL, NOW() - INTERVAL '1 day', '{}', 'GLOBAL')
+          ON CONFLICT (id) DO NOTHING;
+        `);
+
+        await dbQuery(`
+          INSERT INTO planted_areas (id, client_id, crop_type, campaign, area_ha, owner_id) VALUES
+          ('area_la_estela_soja', 'client_la_estela', 'soja', '24/25', 250, 'GLOBAL'),
+          ('area_la_estela_maiz', 'client_la_estela', 'maiz', '24/25', 180, 'GLOBAL'),
+          ('area_el_ceibo_soja', 'client_el_ceibo', 'soja', '24/25', 400, 'GLOBAL'),
+          ('area_el_ceibo_trigo', 'client_el_ceibo', 'trigo', '24/25', 150, 'GLOBAL'),
+          ('area_spinetta_soja', 'client_spinetta', 'soja', '24/25', 120, 'GLOBAL'),
+          ('area_spinetta_maiz', 'client_spinetta', 'maiz', '24/25', 90, 'GLOBAL')
+          ON CONFLICT (id) DO NOTHING;
+        `);
+
+        await dbQuery(`
+          INSERT INTO opportunities (id, type, client_id, crop_type, quantity_tn, price_usd, location, status, owner_id) VALUES
+          ('opp_la_estela', 'oferta', 'client_la_estela', 'soja', 150, 310, 'Río Cuarto, Córdoba', 'abierta', 'GLOBAL'),
+          ('opp_el_ceibo', 'oferta', 'client_el_ceibo', 'soja', 200, 315, 'Venado Tuerto, Santa Fe', 'abierta', 'GLOBAL'),
+          ('opp_spinetta', 'oferta', 'client_spinetta', 'soja', 120, 312, 'Casilda, Santa Fe', 'ganada', 'GLOBAL'),
+          ('opp_pergamino', 'demanda', 'client_pergamino', 'trigo', 300, 215, 'Rosario, Santa Fe', 'abierta', 'GLOBAL'),
+          ('opp_bunge', 'demanda', 'client_bunge', 'maiz', 500, 164, 'San Lorenzo, Santa Fe', 'negociacion', 'GLOBAL')
+          ON CONFLICT (id) DO NOTHING;
+        `);
+
+        await dbQuery(`
+          INSERT INTO deals (id, crop_type, seller_id, buyer_id, seller_name, buyer_name, quantity_tn, price_seller, price_buyer, total_commission, location, payment_terms, grain_quality, estimated_freight, logistics_status, logistics_cupo, logistics_cpe, logistics_driver, logistics_plate, delivery_status, liq_status, operation_status, owner_id) VALUES
+          ('deal_1', 'soja', 'client_la_estela', 'client_bunge', 'Estancia La Estela S.A.', 'Bunge Argentina S.A.', 150, 310, 312, 933, 'San Lorenzo, Santa Fe', '72 hs', 'Cámara', 12, 'cupo_asignado', 'CUP-7729', 'CPE-84729104', 'Juan Pérez', 'AA-123-BB', 'pendiente', 'pendiente', 'abierta', 'GLOBAL'),
+          ('deal_2', 'maiz', 'client_el_ceibo', 'client_pergamino', 'Agropecuaria El Ceibo SRL', 'Cooperativa Agrícola de Pergamino', 200, 161, 163, 648, 'Rosario, Santa Fe', 'Contado', 'Grado 2', 15, 'arribado', 'CUP-4410', 'CPE-10029481', 'Carlos Gómez', 'AC-987-XY', 'entregado', 'pendiente', 'abierta', 'GLOBAL')
+          ON CONFLICT (id) DO NOTHING;
+        `);
+
+        await dbQuery(`
+          INSERT INTO tasks (id, task_title, client_id, client_name, due_date, crop_type, category, status, owner_id) VALUES
+          ('task_1', 'Fijar precio soja lote La Estela', 'client_la_estela', 'Estancia La Estela S.A.', TO_CHAR(NOW() + INTERVAL '1 day', 'YYYY-MM-DD'), 'soja', 'cosecha', 'pendiente', 'GLOBAL'),
+          ('task_2', 'Cobro de saldo boleto maiz #2', 'client_el_ceibo', 'Agropecuaria El Ceibo SRL', TO_CHAR(NOW() - INTERVAL '1 day', 'YYYY-MM-DD'), 'maiz', 'cobro', 'pendiente', 'GLOBAL'),
+          ('task_3', 'Revisar documentación CUIT', 'client_pergamino', 'Cooperativa Agrícola de Pergamino', TO_CHAR(NOW() + INTERVAL '3 days', 'YYYY-MM-DD'), 'trigo', 'documentacion', 'pendiente', 'GLOBAL')
+          ON CONFLICT (id) DO NOTHING;
+        `);
+
+        await dbQuery(`
+          INSERT INTO whatsapp_alerts (id, raw_message, source_group, sender_phone, suggested_type, suggested_crop_type, suggested_quantity, suggested_price, suggested_quantity_unit, suggested_price_unit, original_quantity, original_price, location, payment_terms, grain_quality, status, client_id, es_prospecto, owner_id) VALUES
+          ('alert_1', 'Venta 150 tn soja disponible procedencia Laboulaye condiciones cámara', 'Ventas Granos Cba', '+5493516543210', 'oferta', 'soja', 150, 310, 'tn', 'USD', 150, 310, 'Laboulaye', 'disponible', 'cámara', 'nueva', 'client_la_estela', FALSE, 'GLOBAL'),
+          ('alert_2', 'Compro trigo 300 tn diciembre Necochea grado 2 contractual', 'Demandas Exportadores', '+5491133334444', 'demanda', 'trigo', 300, 215, 'tn', 'USD', 300, 215, 'Necochea', 'contractual', 'grado 2', 'nueva', NULL, TRUE, 'GLOBAL')
+          ON CONFLICT (id) DO NOTHING;
         `);
       }
 
