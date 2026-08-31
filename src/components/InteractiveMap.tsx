@@ -344,37 +344,37 @@ export function InteractiveMap() {
   };
 
   return (
-    <div className="bg-[#1e1e1e] border border-[#333] rounded-3xl overflow-hidden shadow-xl flex flex-col h-[480px]">
+    <div className="bg-[#1e1e1e] border border-[#333] rounded-2xl sm:rounded-3xl overflow-hidden shadow-xl flex flex-col h-[360px] sm:h-[480px]">
       
       {/* Map Control Bar Panel */}
-      <div className="bg-gradient-to-r from-[#212121] to-[#252525] border-b border-[#333] px-5 py-3.5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+      <div className="bg-gradient-to-r from-[#212121] to-[#252525] border-b border-[#333] px-3.5 py-2.5 sm:px-5 sm:py-3.5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
         
-        <div className="flex items-center gap-2.5">
-          <div className="p-2 bg-blue-500/10 border border-blue-500/20 rounded-xl">
+        <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+          <div className="p-1.5 sm:p-2 bg-blue-500/10 border border-blue-500/20 rounded-xl shrink-0">
             <Compass className="w-4 h-4 text-blue-400" />
           </div>
-          <div>
-            <h3 className="text-sm font-black text-white tracking-tight flex items-center gap-1.5">
+          <div className="min-w-0">
+            <h3 className="text-xs sm:text-sm font-black text-white tracking-tight truncate flex items-center gap-1.5">
               Geolocalización Termal AgroSys
             </h3>
-            <p className="text-[10px] text-zinc-500 font-mono">Visualizando {clients.length} clientes y {opportunities.length} negociaciones físicas</p>
+            <p className="text-[9px] sm:text-[10px] text-zinc-500 font-mono truncate">{clients.length} clientes · {opportunities.length} operaciones</p>
           </div>
         </div>
 
         {/* Filter Badges Control Row */}
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="flex overflow-x-auto scrollbar-none items-center gap-1.5 pb-0.5 sm:pb-0">
           {[
             { id: 'all', label: 'Todo', color: 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300' },
             { id: 'clients', label: 'Clientes', color: 'bg-blue-900/20 hover:bg-blue-900/35 border border-blue-500/20 text-blue-400' },
-            { id: 'offers', label: 'Ventas (Ofertas)', color: 'bg-green-900/20 hover:bg-green-900/35 border border-green-500/20 text-green-400' },
-            { id: 'demands', label: 'Compras (Demandas)', color: 'bg-pink-900/20 hover:bg-pink-900/35 border border-pink-500/20 text-pink-400' }
+            { id: 'offers', label: 'Ventas', color: 'bg-green-900/20 hover:bg-green-900/35 border border-green-500/20 text-green-400' },
+            { id: 'demands', label: 'Compras', color: 'bg-pink-900/20 hover:bg-pink-900/35 border border-pink-500/20 text-pink-400' }
           ].map(btn => (
             <button
               key={btn.id}
               onClick={() => setActiveFilter(btn.id as any)}
-              className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+              className={`px-2.5 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs font-bold rounded-xl transition-all whitespace-nowrap cursor-pointer shrink-0 ${
                 activeFilter === btn.id
-                  ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-black shadow-md border-none scale-102'
+                  ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-black shadow-md border-none'
                   : btn.color
               }`}
             >
@@ -384,10 +384,10 @@ export function InteractiveMap() {
           
           <button
             onClick={focusMainZone}
-            className="p-1.5 bg-[#2a2a2a] hover:bg-[#343434] border border-zinc-700/60 rounded-xl text-zinc-400 hover:text-white transition-all cursor-pointer"
+            className="p-1 sm:p-1.5 bg-[#2a2a2a] hover:bg-[#343434] border border-zinc-700/60 rounded-xl text-zinc-400 hover:text-white transition-all cursor-pointer shrink-0"
             title="Centrar en Zona Núcleo"
           >
-            <Focus className="w-4 h-4" />
+            <Focus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </button>
         </div>
 
@@ -397,8 +397,8 @@ export function InteractiveMap() {
       <div className="relative flex-1">
         <div ref={mapContainerRef} className="absolute inset-0 z-0 h-full w-full" />
         
-        {/* Floating Mini Compass Legend Indicator */}
-        <div className="absolute top-4 right-4 z-[400] bg-[#1a1a1a]/95 border border-[#333] p-3 rounded-2xl shadow-xl space-y-2 pointer-events-none backdrop-blur text-[10px] sm:text-xs">
+        {/* Floating Mini Compass Legend Indicator (Desktop & Tablet) */}
+        <div className="hidden sm:block absolute top-4 right-4 z-[400] bg-[#1a1a1a]/95 border border-[#333] p-3 rounded-2xl shadow-xl space-y-2 pointer-events-none backdrop-blur text-xs">
           <p className="font-bold text-white mb-1.5 flex items-center gap-1 border-b border-zinc-800 pb-1">
             <span>🗺️</span> Leyenda de Alertas
           </p>
@@ -413,6 +413,22 @@ export function InteractiveMap() {
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-pink-500 border border-white" />
             <span className="text-zinc-300">Demanda Activa (Comprador)</span>
+          </div>
+        </div>
+
+        {/* Mobile Mini Legend Bar */}
+        <div className="sm:hidden absolute bottom-2 left-2 right-2 z-[400] bg-[#1a1a1a]/90 backdrop-blur border border-[#333] px-2.5 py-1 rounded-xl shadow-lg flex items-center justify-around pointer-events-none text-[9px]">
+          <div className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-blue-500" />
+            <span className="text-zinc-300 font-medium">Clientes</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+            <span className="text-zinc-300 font-medium">Ventas</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-pink-500" />
+            <span className="text-zinc-300 font-medium">Compras</span>
           </div>
         </div>
       </div>

@@ -158,22 +158,28 @@ export function WhatsappTemplateModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in font-sans">
-      <div className="bg-[#1e1e1e] border border-zinc-800 rounded-2xl max-w-2xl w-full overflow-hidden shadow-2xl flex flex-col max-h-[90vh] animate-scale-up">
+    <div className="fixed inset-0 z-[999] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm animate-fade-in font-sans">
+      <div className="bg-[#1e1e1e] border border-zinc-800 rounded-t-3xl sm:rounded-2xl max-w-2xl w-full overflow-hidden shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[90vh] animate-slide-up sm:animate-scale-up pb-safe sm:pb-0">
+        
+        {/* Mobile Grab Bar */}
+        <div className="sm:hidden pt-3 pb-1 flex justify-center bg-green-600/10">
+          <div className="w-12 h-1 bg-zinc-600 rounded-full" />
+        </div>
+
         {/* Header (WhatsApp Green Theme) */}
-        <div className="p-4 bg-green-600/10 border-b border-green-600/20 flex items-center justify-between text-green-400">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 bg-green-600 rounded-full flex items-center justify-center text-white shadow-md">
-              <MessageSquare className="w-5 h-5 fill-current" />
+        <div className="p-3.5 sm:p-4 bg-green-600/10 border-b border-green-600/20 flex items-center justify-between text-green-400">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 bg-green-600 rounded-full flex items-center justify-center text-white shadow-md shrink-0">
+              <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 fill-current" />
             </div>
-            <div>
-              <h3 className="font-black text-sm tracking-wide text-white">Mensajero de WhatsApp</h3>
-              <p className="text-[10px] text-zinc-400">Enviar notificación manual a <strong>{clientName}</strong> ({phone})</p>
+            <div className="min-w-0">
+              <h3 className="font-black text-xs sm:text-sm tracking-wide text-white truncate">Mensajero de WhatsApp</h3>
+              <p className="text-[9px] sm:text-[10px] text-zinc-400 truncate">Notificar a <strong>{clientName}</strong> ({phone})</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 hover:bg-zinc-800 rounded-xl text-zinc-400 hover:text-white transition-colors cursor-pointer"
+            className="p-1.5 hover:bg-zinc-800 rounded-xl text-zinc-400 hover:text-white transition-colors cursor-pointer shrink-0"
             title="Cerrar"
           >
             <X className="w-5 h-5" />
@@ -181,7 +187,7 @@ export function WhatsappTemplateModal({
         </div>
 
         {/* Scrollable Container */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-5 scrollbar-thin">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 sm:space-y-5 scrollbar-thin">
           {/* Create Template Form Toggle */}
           <div className="flex justify-between items-center bg-[#252525] px-4 py-3 rounded-xl border border-zinc-800">
             <div className="flex items-center gap-2">

@@ -217,32 +217,37 @@ export function CSVMappingModal({ isOpen, onClose, onImportComplete }: CSVMappin
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-fade-in">
-      <div className="bg-[#1c1c1c] border border-zinc-800 rounded-3xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl animate-scale-up">
+    <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/85 backdrop-blur-sm animate-fade-in font-sans">
+      <div className="bg-[#1c1c1c] border border-zinc-800 rounded-t-3xl sm:rounded-3xl max-w-4xl w-full max-h-[92vh] sm:max-h-[90vh] flex flex-col overflow-hidden shadow-2xl animate-slide-up sm:animate-scale-up pb-safe sm:pb-0">
         
+        {/* Mobile Grab Bar */}
+        <div className="sm:hidden pt-3 pb-1 flex justify-center bg-zinc-900">
+          <div className="w-12 h-1 bg-zinc-600 rounded-full" />
+        </div>
+
         {/* Header */}
-        <div className="p-6 bg-zinc-900 border-b border-zinc-800 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-green-500/10 border border-green-500/20 text-green-500 rounded-2xl">
-              <FileSpreadsheet className="w-6 h-6" />
+        <div className="p-4 sm:p-6 bg-zinc-900 border-b border-zinc-800 flex justify-between items-center">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="p-2 sm:p-3 bg-green-500/10 border border-green-500/20 text-green-500 rounded-2xl shrink-0">
+              <FileSpreadsheet className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
-            <div>
-              <h3 className="text-lg font-black text-white tracking-tight">Importador Inteligente de CSV</h3>
-              <p className="text-xs text-zinc-400">Mapea columnas personalizadas de planillas al CRM</p>
+            <div className="min-w-0">
+              <h3 className="text-sm sm:text-lg font-black text-white tracking-tight truncate">Importador de CSV</h3>
+              <p className="text-[10px] sm:text-xs text-zinc-400 truncate">Mapea columnas personalizadas al CRM</p>
             </div>
           </div>
           <button 
             type="button" 
             onClick={onClose}
             disabled={isImporting}
-            className="p-2 text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-xl transition cursor-pointer"
+            className="p-1.5 sm:p-2 text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-xl transition cursor-pointer shrink-0"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Step Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
           
           {/* STEP 1: Select CSV */}
           {step === 1 && (

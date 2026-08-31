@@ -38,19 +38,24 @@ export function PlantedAreasModal({ clientId, clientName, onClose }: { clientId:
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-[#1e1e1e] border border-[#333] rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl">
-        <div className="flex items-center justify-between p-6 border-b border-[#333]">
-          <div>
-            <h2 className="text-xl font-bold text-white">Registro de Hectáreas</h2>
-            <p className="text-sm text-gray-400 mt-1">{clientName}</p>
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in font-sans">
+      <div className="bg-[#1e1e1e] border border-[#333] rounded-t-3xl sm:rounded-2xl w-full max-w-2xl max-h-[92vh] sm:max-h-[90vh] flex flex-col shadow-2xl animate-slide-up sm:animate-scale-up pb-safe sm:pb-0">
+        {/* Mobile Grab Bar */}
+        <div className="sm:hidden pt-3 pb-1 flex justify-center bg-[#1e1e1e]">
+          <div className="w-12 h-1 bg-zinc-600 rounded-full" />
+        </div>
+
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-[#333]">
+          <div className="min-w-0">
+            <h2 className="text-base sm:text-xl font-bold text-white truncate">Registro de Hectáreas</h2>
+            <p className="text-xs sm:text-sm text-gray-400 mt-0.5 truncate">{clientName}</p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors p-2 rounded-lg hover:bg-white/5">
+          <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors p-1.5 sm:p-2 rounded-lg hover:bg-white/5 shrink-0">
             <X className="w-5 h-5" />
           </button>
         </div>
         
-        <div className="p-6 overflow-y-auto">
+        <div className="p-4 sm:p-6 overflow-y-auto">
           <form onSubmit={handleSubmit} className="flex gap-4 items-end mb-8 bg-[#252525] p-5 rounded-2xl border border-[#444]">
             <div className="flex-1">
               <label className="block text-sm font-medium text-gray-400 mb-1.5">Grano</label>

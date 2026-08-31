@@ -97,20 +97,26 @@ export function OpportunityReviewModal({ alert, clients, onClose, onSuccess }: P
   };
 
   return (
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-sm">
-      <div className="w-full max-w-4xl max-h-[94vh] overflow-y-auto bg-[#1d1d1d] border border-zinc-700 rounded-lg shadow-2xl">
-        <div className="sticky top-0 z-10 flex items-start justify-between gap-4 p-5 border-b border-zinc-800 bg-[#1d1d1d]">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-purple-400">Revisión obligatoria</p>
-            <h2 className="text-lg font-black text-white mt-1">Convertir alerta en oportunidad</h2>
-            <p className="text-xs text-zinc-400 mt-1">La alerta se marcará como procesada recién cuando este formulario se guarde.</p>
+    <div className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center p-0 sm:p-5 bg-black/80 backdrop-blur-sm animate-fade-in font-sans">
+      <div className="w-full max-w-4xl max-h-[92vh] overflow-y-auto bg-[#1d1d1d] border border-zinc-700 rounded-t-3xl sm:rounded-2xl shadow-2xl animate-slide-up sm:animate-scale-up pb-safe sm:pb-0">
+        
+        {/* Mobile Grab Bar */}
+        <div className="sm:hidden pt-3 pb-1 flex justify-center bg-[#1d1d1d]">
+          <div className="w-12 h-1 bg-zinc-600 rounded-full" />
+        </div>
+
+        <div className="sticky top-0 z-10 flex items-start justify-between gap-4 p-4 sm:p-5 border-b border-zinc-800 bg-[#1d1d1d]">
+          <div className="min-w-0">
+            <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-purple-400">Revisión obligatoria</p>
+            <h2 className="text-base sm:text-lg font-black text-white mt-0.5 truncate">Convertir alerta en oportunidad</h2>
+            <p className="text-[10px] sm:text-xs text-zinc-400 mt-0.5">Se marcará como procesada al guardar.</p>
           </div>
-          <button type="button" onClick={onClose} className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg" title="Cerrar">
+          <button type="button" onClick={onClose} className="p-1.5 sm:p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg shrink-0" title="Cerrar">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-5 space-y-5">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-5 space-y-4 sm:space-y-5">
           <div className="bg-[#0b141a] border border-[#26333d] rounded-lg p-4 text-sm text-zinc-200">
             <p className="text-[10px] uppercase font-bold text-emerald-500 mb-2">Mensaje original</p>
             <p className="italic">“{alert.rawMessage}”</p>
