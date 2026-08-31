@@ -9,9 +9,11 @@ services:
     name: agrosys
     runtime: node
     plan: free
-    buildCommand: npm run build
+    buildCommand: npm install && npm run build
     startCommand: npm start
     envVars:
+      - key: NODE_VERSION
+        value: 22.14.0
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
@@ -24,3 +26,4 @@ services:
         value: token_seguro_agrosys_wa_2026
       - key: GEMINI_API_KEY
         sync: false
+
