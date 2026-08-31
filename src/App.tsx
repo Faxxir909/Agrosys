@@ -7,7 +7,6 @@ import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { Clientes } from './pages/Clientes';
 import { Oportunidades } from './pages/Oportunidades';
-import { MesaOperativa } from './pages/MesaOperativa';
 
 export default function App() {
   return (
@@ -20,7 +19,6 @@ export default function App() {
               <Route index element={<Dashboard />} />
               <Route path="oportunidades" element={<Oportunidades />} />
               <Route path="clientes" element={<Clientes />} />
-              <Route path="operaciones" element={<MesaOperativa />} />
             </Route>
           </Routes>
         </UIProvider>

@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, Briefcase, LogOut, X, Layers } from 'lucide-react';
+import { LayoutDashboard, Users, Briefcase, LogOut, X } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
 import { useWhatsAppAlerts } from '../hooks/useWhatsAppAlerts';
@@ -19,7 +19,6 @@ export function Sidebar() {
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
     { name: 'Oportunidades', path: '/oportunidades', icon: Briefcase, badge: newAlertsCount > 0 ? newAlertsCount : undefined },
     { name: 'CRM y Clientes', path: '/clientes', icon: Users },
-    { name: 'Mesa Operativa', path: '/operaciones', icon: Layers },
   ];
 
   return (

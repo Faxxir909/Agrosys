@@ -12,7 +12,6 @@ export function Topbar() {
   const getBreadcrumbs = () => {
     switch (location.pathname) {
       case '/': return 'Terminal / Dashboard';
-      case '/operaciones': return 'Operaciones / Pipeline';
       case '/clientes': return 'CRM / Directorio';
       case '/oportunidades': return 'Inteligencia / Oportunidades';
       case '/logistica': return 'Operaciones / Logística';

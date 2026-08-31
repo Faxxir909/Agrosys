@@ -204,10 +204,11 @@ export function InteractiveMap() {
 
     mapRef.current = map;
 
-    // Premium dark-themed tile layer from CartoDB
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    // Dark-themed OpenStreetMap tiles (no API key required, no watermarks)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 18,
-      minZoom: 4
+      minZoom: 4,
+      className: 'dark-map-tiles'
     }).addTo(map);
 
     // Dynamic scale control styled cleanly

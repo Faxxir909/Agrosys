@@ -43,15 +43,13 @@ export const simulatedDb: {
 
 if (connectionString) {
   console.log('[DB] Connecting to PostgreSQL at:', connectionString.split('@')[1] || 'local');
+  const isLocalDb = connectionString.includes('localhost') || connectionString.includes('127.0.0.1');
   pool = new pg.Pool({
     connectionString,
-    ssl: connectionString.includes('render.com') || connectionString.includes('elephantsql.com') || connectionString.includes('supabase')
-      ? { rejectUnauthorized: false }
-      : false
+    ssl: isLocalDb ? false : { rejectUnauthorized: false }
   });
 } else {
-  console.warn('[DB] DATABASE_URL missing. Using in-memory simulated PostgreSQL database.');
-  isSimulated = true;
+  console.error('[DB] DATABASE_URL is required. In-memory demo data is disabled.');
 }
 
 export function isDbSimulated() {
@@ -61,7 +59,7 @@ export function isDbSimulated() {
 // SQL query helper
 export async function dbQuery(text: string, params?: any[]): Promise<any> {
   if (isSimulated || !pool) {
-    throw new Error('Database is in simulated mode. Use in-memory operations.');
+    throw new Error('PostgreSQL no está configurado. Defina DATABASE_URL.');
   }
   const client = await pool.connect();
   try {
@@ -72,9 +70,33 @@ export async function dbQuery(text: string, params?: any[]): Promise<any> {
   }
 }
 
+export async function dbTransaction<T>(
+  callback: (query: (text: string, params?: any[]) => Promise<any>) => Promise<T>
+): Promise<T> {
+  if (isSimulated || !pool) {
+    throw new Error('PostgreSQL no está configurado. Defina DATABASE_URL.');
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await callback((text, params) => client.query(text, params));
+    await client.query('COMMIT');
+    return result;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 // Initialize tables on startup
 export async function initializeDatabase() {
-  if (isSimulated || !pool) {
+  if (!pool) {
+    throw new Error('No se puede iniciar AgroSys sin una conexión PostgreSQL real (DATABASE_URL).');
+  }
+  if (isSimulated) {
     console.log('[DB] Database tables initialization skipped (Simulated Mode).');
     if (simulatedDb.whatsapp_templates.length === 0) {
       simulatedDb.whatsapp_templates.push(
@@ -519,6 +541,20 @@ export async function initializeDatabase() {
       );
     `);
 
+    await dbQuery(`
+      ALTER TABLE opportunities ALTER COLUMN status TYPE VARCHAR(40);
+      ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS delivery_date DATE;
+      ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP;
+      ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS payment_terms VARCHAR(100);
+      ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS grain_quality VARCHAR(100);
+      ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS price_mode VARCHAR(20) NOT NULL DEFAULT 'fijo';
+      ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS next_action VARCHAR(250);
+      ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS lost_reason VARCHAR(150);
+      ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS source_alert_id VARCHAR(128);
+      ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT NOW();
+      UPDATE opportunities SET status = 'ganada' WHERE status = 'cerrada';
+    `);
+
     // WhatsApp Alerts
     await dbQuery(`
       CREATE TABLE IF NOT EXISTS whatsapp_alerts (
@@ -555,6 +591,25 @@ export async function initializeDatabase() {
     `);
     await dbQuery(`
       ALTER TABLE whatsapp_alerts ADD COLUMN IF NOT EXISTS grain_quality VARCHAR(100);
+    `);
+
+    await dbQuery(`
+      CREATE TABLE IF NOT EXISTS match_negotiations (
+        id VARCHAR(128) PRIMARY KEY,
+        offer_id VARCHAR(128) NOT NULL REFERENCES opportunities(id) ON DELETE CASCADE,
+        demand_id VARCHAR(128) NOT NULL REFERENCES opportunities(id) ON DELETE CASCADE,
+        quantity_tn NUMERIC NOT NULL,
+        seller_price NUMERIC NOT NULL,
+        buyer_price NUMERIC NOT NULL,
+        commission_pct NUMERIC NOT NULL DEFAULT 2,
+        seller_response VARCHAR(20) NOT NULL DEFAULT 'pendiente',
+        buyer_response VARCHAR(20) NOT NULL DEFAULT 'pendiente',
+        status VARCHAR(40) NOT NULL DEFAULT 'esperando_confirmacion',
+        owner_id VARCHAR(128) NOT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+        UNIQUE (offer_id, demand_id)
+      );
     `);
 
 
@@ -674,35 +729,29 @@ export async function initializeDatabase() {
         `);
       }
 
-      const priceCheck = await dbQuery('SELECT id FROM pizarra_prices LIMIT 1');
-      if (priceCheck.rows.length === 0) {
-        const today = new Date();
-        for (let i = 9; i >= 0; i--) {
-          const date = new Date(today);
-          date.setDate(today.getDate() - i);
-          const rand = Math.sin(i) * 5;
-          await dbQuery(
-            `INSERT INTO pizarra_prices (id, soja, maiz, trigo, sorgo, girasol, source, created_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-            [
-              `pizarra_seed_${i}`,
-              Math.round(280 + rand),
-              Math.round(160 - rand * 0.6),
-              Math.round(195 + rand * 0.8),
-              Math.round(145 + rand * 0.4),
-              Math.round(310 + rand * 1.2),
-              'Cámara Arbitral de Rosario / MATba - USD de referencia oficial',
-              date
-            ]
-          );
-        }
-      }
+      // Create high-performance database indexes
+      await dbQuery(`
+        CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+        CREATE INDEX IF NOT EXISTS idx_clients_owner ON clients(owner_id);
+        CREATE INDEX IF NOT EXISTS idx_clients_status ON clients(status);
+        CREATE INDEX IF NOT EXISTS idx_opportunities_owner ON opportunities(owner_id);
+        CREATE INDEX IF NOT EXISTS idx_opportunities_crop_status ON opportunities(crop_type, status);
+        CREATE INDEX IF NOT EXISTS idx_opportunities_client ON opportunities(client_id);
+        CREATE INDEX IF NOT EXISTS idx_whatsapp_alerts_status ON whatsapp_alerts(status);
+        CREATE INDEX IF NOT EXISTS idx_whatsapp_alerts_client ON whatsapp_alerts(client_id);
+        CREATE INDEX IF NOT EXISTS idx_deals_owner ON deals(owner_id);
+        CREATE INDEX IF NOT EXISTS idx_deals_crop ON deals(crop_type);
+        CREATE INDEX IF NOT EXISTS idx_tasks_owner ON tasks(owner_id);
+        CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks(due_date);
+        CREATE INDEX IF NOT EXISTS idx_pizarra_created ON pizarra_prices(created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_audit_logs_created ON audit_logs(created_at DESC);
+      `);
+
     }
 
-    console.log('[DB] PostgreSQL tables checked/initialized successfully.');
+    console.log('[DB] PostgreSQL tables and indexes checked/initialized successfully.');
   } catch (err) {
     console.error('[DB] Failed to initialize PostgreSQL tables:', err);
-    console.warn('[DB] Switching to simulated in-memory mode due to connection error.');
-    isSimulated = true;
+    throw err;
   }
 }

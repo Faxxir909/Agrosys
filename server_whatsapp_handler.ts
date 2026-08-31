@@ -1,40 +1,6 @@
-import { initializeApp, cert, getApps } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
 import { GoogleGenAI } from '@google/genai';
 import { isDbSimulated, dbQuery, simulatedDb } from './server_db.ts';
 import crypto from 'crypto';
-
-// Lazy initialization of Firebase Admin
-let db: FirebaseFirestore.Firestore | null = null;
-export function getDb() {
-  if (!db) {
-    const serviceAccountVar = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-    console.log("Service Account JSON var length:", serviceAccountVar?.length);
-    if (!serviceAccountVar) {
-      console.warn("FIREBASE_SERVICE_ACCOUNT_JSON env var missing, simulating database connection.");
-      return null;
-    }
-    
-    let serviceAccount;
-    try {
-       if (serviceAccountVar.trim().startsWith('{')) {
-           serviceAccount = JSON.parse(serviceAccountVar);
-       } else {
-           serviceAccount = JSON.parse(Buffer.from(serviceAccountVar, 'base64').toString('utf-8'));
-       }
-    } catch(e: any) {
-       console.error("Parse error details:", e);
-       console.warn("Could not parse FIREBASE_SERVICE_ACCOUNT_JSON, simulating database connection.");
-       return null;
-    }
-    
-    if (getApps().length === 0) {
-      initializeApp({ credential: cert(serviceAccount) });
-    }
-    db = getFirestore();
-  }
-  return db;
-}
 
 // In-memory fallback
 export const fallbackMessages: any[] = [];
@@ -180,6 +146,87 @@ export function fallbackRegexParse(text: string) {
   };
 }
 
+function normalizePhone(value: string | null | undefined) {
+  return String(value || '').replace(/\D/g, '');
+}
+
+function phoneMatches(left: string, right: string) {
+  if (!left || !right) return false;
+  const tailLength = Math.min(8, left.length, right.length);
+  return left.slice(-tailLength) === right.slice(-tailLength);
+}
+
+function detectNegotiationResponse(text: string): 'aceptada' | 'rechazada' | null {
+  const normalized = text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  if (/\b(acepto|aceptamos|confirmo|confirmamos|autorizo|autorizamos|de acuerdo|dale|ok)\b/.test(normalized)) {
+    return 'aceptada';
+  }
+  if (/\b(rechazo|rechazamos|no acepto|no autorizo|revisar|contraoferta)\b/.test(normalized)) {
+    return 'rechazada';
+  }
+  return null;
+}
+
+async function processNegotiationResponse(rawMessage: string, senderPhone: string): Promise<boolean> {
+  const response = detectNegotiationResponse(rawMessage);
+  if (!response || isDbSimulated()) return false;
+
+  const senderDigits = normalizePhone(senderPhone);
+  if (!senderDigits) return false;
+
+  const result = await dbQuery(
+    `SELECT n.id, n.offer_id as "offerId", n.demand_id as "demandId",
+            n.seller_response as "sellerResponse", n.buyer_response as "buyerResponse",
+            seller.phone as "sellerPhone", buyer.phone as "buyerPhone"
+     FROM match_negotiations n
+     JOIN opportunities offer_opp ON offer_opp.id = n.offer_id
+     JOIN opportunities demand_opp ON demand_opp.id = n.demand_id
+     LEFT JOIN clients seller ON seller.id = offer_opp.client_id
+     LEFT JOIN clients buyer ON buyer.id = demand_opp.client_id
+     WHERE n.status = 'esperando_confirmacion'
+     ORDER BY n.updated_at DESC
+     LIMIT 20`
+  );
+
+  const negotiation = result.rows.find((item: any) =>
+    phoneMatches(senderDigits, normalizePhone(item.sellerPhone)) ||
+    phoneMatches(senderDigits, normalizePhone(item.buyerPhone))
+  );
+  if (!negotiation) return false;
+
+  const isSeller = phoneMatches(senderDigits, normalizePhone(negotiation.sellerPhone));
+  const sellerResponse = isSeller ? response : negotiation.sellerResponse;
+  const buyerResponse = isSeller ? negotiation.buyerResponse : response;
+  const negotiationStatus = response === 'rechazada'
+    ? 'rechazada'
+    : sellerResponse === 'aceptada' && buyerResponse === 'aceptada'
+      ? 'confirmada'
+      : 'esperando_confirmacion';
+  const opportunityStatus = negotiationStatus === 'esperando_confirmacion' ? 'esperando_confirmacion' : 'negociacion';
+  const nextAction = negotiationStatus === 'confirmada'
+    ? 'Concretar cruce confirmado por ambas partes'
+    : negotiationStatus === 'rechazada'
+      ? 'Revisar condiciones y enviar una nueva propuesta'
+      : 'Esperar confirmación por WhatsApp';
+
+  await dbQuery(
+    `UPDATE match_negotiations
+     SET seller_response = $1, buyer_response = $2, status = $3, updated_at = NOW()
+     WHERE id = $4`,
+    [sellerResponse, buyerResponse, negotiationStatus, negotiation.id]
+  );
+  await dbQuery(
+    `UPDATE opportunities
+     SET status = $1, next_action = $2, updated_at = NOW()
+     WHERE id IN ($3, $4)`,
+    [opportunityStatus, nextAction, negotiation.offerId, negotiation.demandId]
+  );
+
+  console.log(`[WA NEGOTIATION] ${isSeller ? 'Seller' : 'Buyer'} response registered as ${response} for ${negotiation.id}.`);
+  if (onAlertAddedCallback) onAlertAddedCallback();
+  return true;
+}
+
 export async function processIncomingMessage(rawMessage: string, senderPhone: string, sourceGroup: string = 'WhatsApp Baileys', messageId?: string) {
   const alertId = messageId || crypto.randomUUID();
 
@@ -201,6 +248,10 @@ export async function processIncomingMessage(rawMessage: string, senderPhone: st
     }
   }
 
+  if (await processNegotiationResponse(rawMessage, senderPhone)) {
+    return;
+  }
+
   // 1. Perform Layer 1 heuristic filtering to avoid calling Gemini for non-trade chats
   if (!whatsappSettings.bypassHeuristic && !hasTradeIntent(rawMessage)) {
     console.log(`[WA HANDLER] Message ${alertId} filtered out by Layer 1 heuristic check. Not a grain trade offer/demand.`);
@@ -219,7 +270,7 @@ export async function processIncomingMessage(rawMessage: string, senderPhone: st
   let paymentTerms: string | null = null;
   let grainQuality: string | null = null;
 
-  // 1. Analyze with Gemini
+  // Analyze with Gemini. Incoming messages are not stored with invented extraction data.
   let parsedByGemini = false;
   try {
      if (process.env.GEMINI_API_KEY) {
@@ -288,7 +339,7 @@ Devuelve un JSON estrictamente válido con el siguiente formato:
 Mensaje: "${rawMessage}"`;
         
         const response = await ai.models.generateContent({
-           model: 'gemini-2.5-flash',
+           model: 'gemini-3.6-flash',
            contents: prompt,
            config: {
              responseMimeType: 'application/json'
@@ -313,27 +364,14 @@ Mensaje: "${rawMessage}"`;
           parsedByGemini = true;
         }
      } else {
-        console.warn(`[WA HANDLER] GEMINI_API_KEY is not defined in the environment. Skipping Gemini call for message ${alertId}.`);
+        throw new Error('GEMINI_API_KEY no está configurada.');
      }
   } catch (e) {
-     console.error('[WA HANDLER] Gemini extraction error, falling back to regex parser:', e);
+     console.error('[WA HANDLER] Gemini extraction error:', e);
   }
 
-  // Fallback to local regex parser if Gemini is unconfigured or failed
   if (!parsedByGemini) {
-     console.log(`[WA HANDLER] Running Local Regex Fallback Parser for message ${alertId}...`);
-     const parsed = fallbackRegexParse(rawMessage);
-     suggestedType = parsed.type;
-     suggestedCropType = parsed.crop;
-     suggestedQuantity = parsed.quantity;
-     suggestedPrice = parsed.price;
-     suggestedQuantityUnit = parsed.quantityUnit;
-     suggestedPriceUnit = parsed.priceUnit;
-     originalQuantity = parsed.originalQuantity;
-     originalPrice = parsed.originalPrice;
-     location = parsed.location;
-     paymentTerms = parsed.paymentTerms;
-     grainQuality = parsed.grainQuality;
+     throw new Error(`No se pudo analizar el mensaje ${alertId} con Gemini.`);
   }
 
   // 2. Filter out non-trade messages (anything that isn't a valid grain offer or demand)

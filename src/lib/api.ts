@@ -1,5 +1,3 @@
-import { auth } from './firebase';
-
 const getBaseUrl = () => {
   return typeof window !== 'undefined' ? window.location.origin : '';
 };
@@ -14,32 +12,20 @@ async function request(path: string, options: RequestInit = {}): Promise<any> {
   }
 
   // Inject local JWT authentication header if available
-  let tokenFound = false;
   if (typeof window !== 'undefined') {
     const token = window.localStorage.getItem('agro_jwt_token');
     if (token) {
       headers.set('Authorization', `Bearer ${token}`);
-      tokenFound = true;
-    }
-  }
-
-  // Fallback to Firebase authentication if local token is not available
-  if (!tokenFound) {
-    const currentUser = auth.currentUser;
-    if (currentUser) {
-      headers.set('X-User-Id', currentUser.uid);
-      try {
-        const token = await currentUser.getIdToken();
-        headers.set('Authorization', `Bearer ${token}`);
-      } catch (e) {
-        console.warn('[API] Could not get ID token, falling back to User ID header:', e);
-      }
     }
   }
 
   const response = await fetch(url, { ...options, headers });
   
   if (!response.ok) {
+    if (response.status === 401 && typeof window !== 'undefined' && !path.startsWith('/api/auth/login')) {
+      window.localStorage.removeItem('agro_jwt_token');
+      window.localStorage.removeItem('agro_user_data');
+    }
     const errorText = await response.text();
     let errorMessage = errorText;
     try {
@@ -71,9 +57,26 @@ export const api = {
   },
   // Whatsapp Message Send / Match notification
   whatsapp: {
+    status: () => request('/api/whatsapp/status'),
+    start: () => request('/api/whatsapp/start', { method: 'POST' }),
+    reset: () => request('/api/whatsapp/reset', { method: 'POST' }),
+    getSettings: () => request('/api/whatsapp/settings'),
+    updateSettings: (data: { bypassHeuristic: boolean; matchTolerance: number }) =>
+      request('/api/whatsapp/settings', { method: 'POST', body: JSON.stringify(data) }),
     sendMessage: (data: { phone: string; message: string; clientId?: string }) => 
       request('/api/whatsapp/send-message', { method: 'POST', body: JSON.stringify(data) }),
-    notifyMatch: (data: { sellerId: string; buyerId: string; cropType: string; overlapQuantity: number; price: number }) =>
+    notifyMatch: (data: {
+      sellerId: string;
+      buyerId: string;
+      offerId: string;
+      demandId: string;
+      cropType: string;
+      overlapQuantity: number;
+      price: number;
+      sellerPrice?: number;
+      buyerPrice?: number;
+      commissionPct?: number;
+    }) =>
       request('/api/whatsapp/notify-match', { method: 'POST', body: JSON.stringify(data) })
   },
 
@@ -110,6 +113,10 @@ export const api = {
   opportunities: {
     list: () => request('/api/opportunities'),
     matches: () => request('/api/opportunities/matches'),
+    parseText: (text: string) => request('/api/parse-opportunity-text', {
+      method: 'POST',
+      body: JSON.stringify({ text })
+    }),
     create: (data: any) => request('/api/opportunities', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: any) => request(`/api/opportunities/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
     delete: (id: string) => request(`/api/opportunities/${id}`, { method: 'DELETE' }),

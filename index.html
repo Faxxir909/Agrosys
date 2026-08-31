@@ -36,7 +36,7 @@
           });
         } catch(e) {}
         
-        // Bulletproof global patch to prevent React/Firebase crashing on JSON.parse("undefined")
+        // Bulletproof global patch to prevent crashing on JSON.parse("undefined")
         const originalJsonParse = JSON.parse;
         JSON.parse = function(text, reviver) {
           if (text === "undefined" || text === undefined) {

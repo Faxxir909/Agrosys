@@ -72,6 +72,8 @@ export function Dashboard() {
       const res = await api.whatsapp.notifyMatch({
         sellerId: match.offer.clientId,
         buyerId: match.demand.clientId,
+        offerId: match.offer.id,
+        demandId: match.demand.id,
         cropType: match.cropType,
         overlapQuantity: match.overlapQuantity,
         price: match.midpointPrice,
@@ -175,20 +177,20 @@ export function Dashboard() {
       const demandDiff = match.demand.quantity_tn - match.overlapQuantity;
 
       if (offerDiff <= 0) {
-        await api.opportunities.update(match.offer.id, { status: 'cerrada' });
+        await api.opportunities.update(match.offer.id, { status: 'ganada' });
       } else {
         await api.opportunities.update(match.offer.id, { quantity_tn: offerDiff });
         addToast(`Oferta reducida a ${offerDiff} TN por saldo remanente`, 'info');
       }
 
       if (demandDiff <= 0) {
-        await api.opportunities.update(match.demand.id, { status: 'cerrada' });
+        await api.opportunities.update(match.demand.id, { status: 'ganada' });
       } else {
         await api.opportunities.update(match.demand.id, { quantity_tn: demandDiff });
         addToast(`Demanda reducida a ${demandDiff} TN por saldo remanente`, 'info');
       }
 
-      addToast(`🏆 Boleto liquidado por ${formatNumber(match.overlapQuantity)} TN con éxito! Pasó a la Mesa Operativa.`, 'success');
+      addToast(`🏆 Boleto liquidado por ${formatNumber(match.overlapQuantity)} TN y registrado con éxito.`, 'success');
       setCotizadorModal(prev => ({ ...prev, isOpen: false }));
     } catch (error) {
       addToast('Error al procesar la liquidación', 'error');
@@ -209,7 +211,7 @@ export function Dashboard() {
   
   // Real-time prices states
   const [prices, setPrices] = useState({
-    soja: 315.0, maiz: 165.0, trigo: 210.0, sorgo: 155.0, girasol: 290.0
+    soja: 0, maiz: 0, trigo: 0, sorgo: 0, girasol: 0
   });
   const [pricesMetadata, setPricesMetadata] = useState({
     source: 'Obteniendo cotizaciones oficiales de Rosario...',
@@ -247,11 +249,11 @@ export function Dashboard() {
       const data = JSON.parse(text);
       if (data && typeof data === 'object') {
         setPrices({
-          soja: Number(data.soja) || 315.0,
-          maiz: Number(data.maiz) || 165.0,
-          trigo: Number(data.trigo) || 210.0,
-          sorgo: Number(data.sorgo) || 155.0,
-          girasol: Number(data.girasol) || 290.0
+          soja: Number(data.soja),
+          maiz: Number(data.maiz),
+          trigo: Number(data.trigo),
+          sorgo: Number(data.sorgo),
+          girasol: Number(data.girasol)
         });
         setPricesMetadata({
           source: data.source || 'Cámara Arbitral de Rosario',
@@ -260,10 +262,11 @@ export function Dashboard() {
         fetchPriceHistory();
       }
     } catch (err) {
-      console.warn('Real prices fetch offline or skipped, using reference values:', err);
+      console.warn('No fue posible obtener cotizaciones reales:', err);
+      setPrices({ soja: 0, maiz: 0, trigo: 0, sorgo: 0, girasol: 0 });
       setPricesMetadata({
-        source: 'Cámara Arbitral de Rosario (Precios de referencia)',
-        date: format(new Date(), 'yyyy-MM-dd')
+        source: 'Cotizaciones no disponibles',
+        date: ''
       });
     } finally {
       setLoadingPrices(false);
@@ -484,7 +487,7 @@ export function Dashboard() {
                       <span className="font-bold text-gray-200 capitalize text-xs sm:text-sm">{grano}</span>
                     </div>
                     <div className="text-sm sm:text-base font-black text-green-400 font-mono group-hover:scale-105 transition-transform">
-                      USD {Number(price).toFixed(1)} <span className="text-[9px] text-gray-500 font-normal">/tn</span>
+                      {Number(price) > 0 ? <>USD {Number(price).toFixed(1)} <span className="text-[9px] text-gray-500 font-normal">/tn</span></> : 'Sin datos'}
                     </div>
                   </div>
                 ))}
@@ -882,14 +885,17 @@ export function Dashboard() {
                       </td>
                       <td className="p-4 text-center">
                         <span className={`px-2.5 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider font-mono border ${
-                          opStatus === 'cerrada' ? 'bg-zinc-800 text-zinc-500 border-zinc-700' :
+                          opStatus === 'ganada' ? 'bg-green-900/20 text-green-400 border-green-800' :
+                          opStatus === 'perdida' || opStatus === 'vencida' ? 'bg-zinc-800 text-zinc-500 border-zinc-700' :
                           hasLpg ? 'bg-green-500/10 text-green-400 border-green-500/20' :
                           delStatus === 'entregado' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
                           logStatus === 'en_transito' ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' :
                           logStatus === 'cupo_asignado' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
                           'bg-red-500/10 text-red-400 border-red-500/20'
                         }`}>
-                          {opStatus === 'cerrada' ? 'Archivado 📁' :
+                          {opStatus === 'ganada' ? 'Ganada' :
+                           opStatus === 'perdida' ? 'Perdida' :
+                           opStatus === 'vencida' ? 'Vencida' :
                            hasLpg ? 'Liquidado 💵' :
                            delStatus === 'entregado' ? 'Entregado ⚖️' :
                            logStatus === 'en_transito' ? 'En Tránsito 🚚' :

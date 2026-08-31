@@ -10,6 +10,13 @@ import { useWhatsAppAlerts } from '../hooks/useWhatsAppAlerts';
 import { useUI } from '../contexts/UIContext';
 import { format } from 'date-fns';
 import { WhatsappQRSetup } from '../components/WhatsappQRSetup';
+import { OpportunityReviewModal } from '../components/OpportunityReviewModal';
+
+const defaultExpiryDate = () => {
+  const date = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+  return date.toISOString().slice(0, 10);
+};
 
 export function Oportunidades() {
   const { opportunities, loading: oppLoading } = useOpportunities();
@@ -21,11 +28,17 @@ export function Oportunidades() {
   const [activeTab, setActiveTab] = useState<'ofertas' | 'demandas' | 'whatsapp' | 'matches'>('ofertas');
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('kanban');
   const [draggedOverColumn, setDraggedOverColumn] = useState<string | null>(null);
+  const [reviewAlert, setReviewAlert] = useState<any | null>(null);
+  const [lostDialog, setLostDialog] = useState({ isOpen: false, id: '', reason: '' });
 
   const handleStatusChange = async (id: string, newStatus: string) => {
+    if (newStatus === 'perdida') {
+      setLostDialog({ isOpen: true, id, reason: '' });
+      return;
+    }
     try {
       await api.opportunities.update(id, { status: newStatus });
-      addToast(`Oportunidad movida a ${newStatus} ✨`, 'success');
+      addToast(`Oportunidad movida a ${newStatus.replace(/_/g, ' ')}`, 'success');
     } catch (error) {
       addToast('Error al mover oportunidad', 'error');
     }
@@ -65,6 +78,12 @@ export function Oportunidades() {
     quantity_tn: '',
     price_usd: '',
     location: '',
+    priceMode: 'fijo' as 'fijo' | 'a_negociar',
+    deliveryDate: '',
+    expiresAt: defaultExpiryDate(),
+    paymentTerms: '',
+    grainQuality: '',
+    nextAction: 'Contactar y validar condiciones',
   });
 
   const [oppProvincia, setOppProvincia] = useState('');
@@ -158,6 +177,14 @@ export function Oportunidades() {
       addToast("Seleccione un cliente válido", "error");
       return;
     }
+    if (Number(formData.quantity_tn) <= 0) {
+      addToast('Ingrese una cantidad mayor a 0 TN', 'error');
+      return;
+    }
+    if (formData.priceMode === 'fijo' && Number(formData.price_usd) <= 0) {
+      addToast('Ingrese un precio o marque A negociar', 'error');
+      return;
+    }
 
     try {
       await api.opportunities.create({
@@ -165,13 +192,28 @@ export function Oportunidades() {
         clientId: formData.clientId,
         cropType: formData.cropType,
         quantity_tn: Number(formData.quantity_tn),
-        price_usd: Number(formData.price_usd),
+        price_usd: formData.priceMode === 'a_negociar' ? 0 : Number(formData.price_usd),
         location: formData.location || client.location?.address || 'A convenir',
+        priceMode: formData.priceMode,
+        deliveryDate: formData.deliveryDate || null,
+        expiresAt: formData.expiresAt,
+        paymentTerms: formData.paymentTerms || null,
+        grainQuality: formData.grainQuality || null,
+        nextAction: formData.nextAction || 'Contactar y validar condiciones',
       });
-      setFormData({ ...formData, quantity_tn: '', price_usd: '', location: '' });
+      setFormData({
+        ...formData,
+        quantity_tn: '',
+        price_usd: '',
+        location: '',
+        deliveryDate: '',
+        expiresAt: defaultExpiryDate(),
+        paymentTerms: '',
+        grainQuality: ''
+      });
       addToast(`${activeTab === 'ofertas' ? 'Oferta' : 'Demanda'} creada con éxito`, 'success');
-    } catch (error) {
-      addToast('Error al crear el registro', 'error');
+    } catch (error: any) {
+      addToast(error.message || 'Error al crear el registro', 'error');
     }
   };
 
@@ -195,9 +237,9 @@ export function Oportunidades() {
   const toggleStatus = async (opp: any) => {
     try {
       await api.opportunities.update(opp.id, {
-        status: opp.status === 'abierta' ? 'cerrada' : 'abierta'
+        status: opp.status === 'abierta' ? 'negociacion' : 'abierta'
       });
-      addToast(`Estado cambiado a ${opp.status === 'abierta' ? 'cerrada' : 'abierta'}`, 'success');
+      addToast(`Estado cambiado a ${opp.status === 'abierta' ? 'negociación' : 'abierta'}`, 'success');
     } catch (error) {
       addToast('Error al actualizar estado', 'error');
     }
@@ -224,17 +266,46 @@ export function Oportunidades() {
   }, [opportunities]);
 
   const [notifyingMatchId, setNotifyingMatchId] = useState<string | null>(null);
+  const [matchDrafts, setMatchDrafts] = useState<Record<string, { quantity: number; sellerPrice: number; buyerPrice: number; commissionPct: number }>>({});
+
+  const getMatchDraft = (match: any) => matchDrafts[match.id] || {
+    quantity: Number(match.negotiation?.quantity_tn || match.overlapQuantity),
+    sellerPrice: Number(match.negotiation?.sellerPrice || match.offer.price_usd),
+    buyerPrice: Number(match.negotiation?.buyerPrice || match.demand.price_usd),
+    commissionPct: Number(match.negotiation?.commissionPct || 2)
+  };
+
+  const updateMatchDraft = (match: any, field: string, value: number) => {
+    setMatchDrafts(prev => ({
+      ...prev,
+      [match.id]: {
+        ...(prev[match.id] || {
+          quantity: Number(match.negotiation?.quantity_tn || match.overlapQuantity),
+          sellerPrice: Number(match.negotiation?.sellerPrice || match.offer.price_usd),
+          buyerPrice: Number(match.negotiation?.buyerPrice || match.demand.price_usd),
+          commissionPct: Number(match.negotiation?.commissionPct || 2)
+        }),
+        [field]: value
+      }
+    }));
+  };
 
   const handleNotifyMatch = async (match: any) => {
     if (notifyingMatchId) return;
+    const draft = getMatchDraft(match);
     setNotifyingMatchId(match.id);
     try {
       const res = await api.whatsapp.notifyMatch({
         sellerId: match.offer.clientId,
         buyerId: match.demand.clientId,
+        offerId: match.offer.id,
+        demandId: match.demand.id,
         cropType: match.cropType,
-        overlapQuantity: match.overlapQuantity,
-        price: match.midpointPrice,
+        overlapQuantity: draft.quantity,
+        price: (draft.sellerPrice + draft.buyerPrice) / 2,
+        sellerPrice: draft.sellerPrice,
+        buyerPrice: draft.buyerPrice,
+        commissionPct: draft.commissionPct,
       });
       if (res.success) {
         let msg = "Notificaciones de cruce enviadas con éxito. ";
@@ -261,6 +332,7 @@ export function Oportunidades() {
   const handleCloseMatch = (match: any) => {
     const seller = clients.find(c => c.id === match.offer.clientId);
     const buyer = clients.find(c => c.id === match.demand.clientId);
+    const draft = getMatchDraft(match);
     
     if (!seller || !buyer) {
       addToast('Error: No se pudieron encontrar los clientes del cruce', 'error');
@@ -270,7 +342,7 @@ export function Oportunidades() {
     setConfirmDialog({
       isOpen: true,
       title: 'Liquidar Cruce Algorítmico',
-      message: `¿Deseas liquidar este cruce?\nSe venderán ${formatNumber(match.overlapQuantity)} TN de ${match.cropType.toUpperCase()} de ${seller.name} (${match.offer.price_usd} USD) a ${buyer.name} (${match.demand.price_usd} USD).\n\nComisión estimada: USD ${formatNumber(Math.round(match.totalCommission))} (2%)`,
+      message: `¿Deseas liquidar este cruce?\nSe venderán ${formatNumber(draft.quantity)} TN de ${match.cropType.toUpperCase()} de ${seller.name} (${draft.sellerPrice} USD) a ${buyer.name} (${draft.buyerPrice} USD).\n\nComisión estimada: USD ${formatNumber(Math.round(draft.quantity * ((draft.sellerPrice + draft.buyerPrice) / 2) * (draft.commissionPct / 100)))} (${draft.commissionPct}%)${match.negotiation?.status !== 'confirmada' ? '\n\nAviso: todavía no figuran ambas confirmaciones por WhatsApp.' : ''}`,
       onConfirm: async () => {
         try {
           // 1. Guardar Deal
@@ -280,32 +352,32 @@ export function Oportunidades() {
             buyerId: match.demand.clientId,
             sellerName: seller.name,
             buyerName: buyer.name,
-            quantity_tn: match.overlapQuantity,
-            price_seller: match.offer.price_usd,
-            price_buyer: match.demand.price_usd,
-            totalCommission: Math.round(match.totalCommission),
+            quantity_tn: draft.quantity,
+            price_seller: draft.sellerPrice,
+            price_buyer: draft.buyerPrice,
+            totalCommission: Math.round(draft.quantity * ((draft.sellerPrice + draft.buyerPrice) / 2) * (draft.commissionPct / 100)),
             location: match.demand.location || match.offer.location || 'A convenir',
           });
 
           // 2. Liquidar cantidades parciales
-          const offerDiff = match.offer.quantity_tn - match.overlapQuantity;
-          const demandDiff = match.demand.quantity_tn - match.overlapQuantity;
+          const offerDiff = match.offer.quantity_tn - draft.quantity;
+          const demandDiff = match.demand.quantity_tn - draft.quantity;
 
           if (offerDiff <= 0) {
-            await api.opportunities.update(match.offer.id, { status: 'cerrada' });
+            await api.opportunities.update(match.offer.id, { status: 'ganada' });
           } else {
             await api.opportunities.update(match.offer.id, { quantity_tn: offerDiff });
             addToast(`Oferta reducida a ${offerDiff} TN por saldo remanente`, 'info');
           }
 
           if (demandDiff <= 0) {
-            await api.opportunities.update(match.demand.id, { status: 'cerrada' });
+            await api.opportunities.update(match.demand.id, { status: 'ganada' });
           } else {
             await api.opportunities.update(match.demand.id, { quantity_tn: demandDiff });
             addToast(`Demanda reducida a ${demandDiff} TN por saldo remanente`, 'info');
           }
 
-          addToast(`🏆 Boleto liquidado por ${formatNumber(match.overlapQuantity)} TN con éxito!`, 'success');
+          addToast(`Boleto liquidado por ${formatNumber(draft.quantity)} TN con éxito`, 'success');
           setActiveTab('matches');
         } catch (error) {
           addToast('Error al procesar la liquidación', 'error');
@@ -395,40 +467,7 @@ export function Oportunidades() {
             clients={clients}
             opportunities={opportunities}
             setConfirmDialog={setConfirmDialog}
-            onConvert={async (alert) => {
-              const type = alert.suggestedType === 'demanda' ? 'demandas' : 'ofertas';
-              setActiveTab(type);
-              setIsMobileFormExpanded(true);
-              
-              // Try to find client by prematched clientId or phone
-              const matchedClient = alert.clientId
-                ? clients.find(c => c.id === alert.clientId)
-                : clients.find(c => 
-                    c.phone && alert.senderPhone && 
-                    (c.phone.replace(/\D/g, '').includes(alert.senderPhone.replace(/\D/g, '')) ||
-                     alert.senderPhone.replace(/\D/g, '').includes(c.phone.replace(/\D/g, '')))
-                  );
-
-              setFormData({
-                clientId: matchedClient?.id || '',
-                cropType: (['soja', 'maiz', 'trigo', 'sorgo', 'girasol'].includes(alert.suggestedCropType || '') ? alert.suggestedCropType : 'soja') as any,
-                quantity_tn: alert.suggestedQuantity?.toString() || '',
-                price_usd: alert.suggestedPrice?.toString() || '', 
-                location: alert.location || '',
-              });
-              
-              if (alert.suggestedPrice) {
-                addToast('Datos cargados de IA con precio pre-completado ✨', 'success');
-              } else {
-                addToast('Datos del mensaje precargados. ¡Complete la información restante!', 'success');
-              }
-              
-              try {
-                await api.whatsappAlerts.updateStatus(alert.id, 'procesada');
-              } catch (error) {
-                console.error("Error updating alert status:", error);
-              }
-            }} 
+            onConvert={setReviewAlert}
           />
         </>
       ) : activeTab === 'matches' ? (
@@ -464,6 +503,8 @@ export function Oportunidades() {
                 const buyerName = buyer?.name || 'Desconocido';
                 
                 const profitable = match.priceSpread >= 0;
+                const draft = getMatchDraft(match);
+                const negotiation = match.negotiation;
 
                 return (
                   <div key={match.id} className={`bg-[#1e1e1e] border rounded-2xl p-5 flex flex-col xl:flex-row items-stretch justify-between gap-6 transition-all shadow-md ${profitable ? 'border-green-500/25 hover:border-green-500/40' : 'border-[#333] hover:border-[#444]'}`}>
@@ -494,22 +535,54 @@ export function Oportunidades() {
                             <p className="font-mono text-[10.5px] mt-0.5">Total: {formatNumber(match.demand.quantity_tn)} TN @ <strong className="text-white">${formatNumber(match.demand.price_usd)}</strong></p>
                           </div>
                         </div>
+                        <div className="flex flex-wrap gap-1.5 pt-2">
+                          {(match.explanations || []).map((reason: string) => (
+                            <span key={reason} className="text-[10px] text-zinc-300 bg-zinc-800/70 border border-zinc-700 px-2 py-1 rounded">
+                              {reason}
+                            </span>
+                          ))}
+                        </div>
                       </div>
                     </div>
 
-                    <div className="flex flex-col sm:flex-row xl:flex-col justify-between items-stretch xl:items-end gap-3 min-w-[245px] border-t xl:border-t-0 xl:border-l border-zinc-800 pt-4 sm:pt-0 sm:pl-4 xl:pl-6">
-                      
-                      <div className="flex-1 flex flex-col justify-center sm:text-right xl:text-right">
-                        <div className="flex items-center gap-1.5 sm:justify-end xl:justify-end">
-                          <span className="text-xs text-gray-400 font-medium">Margen Spread:</span>
-                          <span className={`text-sm font-mono font-black ${profitable ? 'text-green-400' : 'text-zinc-400'}`}>
-                            {profitable ? '+' : ''}${formatNumber(match.priceSpread)} USD
+                    <div className="flex flex-col justify-between items-stretch gap-3 min-w-[290px] border-t xl:border-t-0 xl:border-l border-zinc-800 pt-4 xl:pt-0 xl:pl-6">
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className="text-[9px] uppercase font-bold text-zinc-500">Volumen TN
+                          <input type="number" min="1" max={match.overlapQuantity} value={draft.quantity} onChange={e => updateMatchDraft(match, 'quantity', Number(e.target.value))} className="mt-1 w-full bg-zinc-900 border border-zinc-700 rounded px-2 py-1.5 text-xs text-white font-mono" />
+                        </label>
+                        <label className="text-[9px] uppercase font-bold text-zinc-500">Comisión %
+                          <input type="number" min="0" step="0.1" value={draft.commissionPct} onChange={e => updateMatchDraft(match, 'commissionPct', Number(e.target.value))} className="mt-1 w-full bg-zinc-900 border border-zinc-700 rounded px-2 py-1.5 text-xs text-white font-mono" />
+                        </label>
+                        <label className="text-[9px] uppercase font-bold text-zinc-500">Precio vendedor
+                          <input type="number" min="1" step="0.5" value={draft.sellerPrice} onChange={e => updateMatchDraft(match, 'sellerPrice', Number(e.target.value))} className="mt-1 w-full bg-zinc-900 border border-zinc-700 rounded px-2 py-1.5 text-xs text-green-400 font-mono" />
+                        </label>
+                        <label className="text-[9px] uppercase font-bold text-zinc-500">Precio comprador
+                          <input type="number" min="1" step="0.5" value={draft.buyerPrice} onChange={e => updateMatchDraft(match, 'buyerPrice', Number(e.target.value))} className="mt-1 w-full bg-zinc-900 border border-zinc-700 rounded px-2 py-1.5 text-xs text-blue-400 font-mono" />
+                        </label>
+                      </div>
+
+                      {negotiation && (
+                        <div className="flex items-center justify-between gap-2 text-[10px] border-y border-zinc-800 py-2">
+                          <span className={negotiation.sellerResponse === 'aceptada' ? 'text-green-400' : negotiation.sellerResponse === 'rechazada' ? 'text-red-400' : 'text-amber-400'}>
+                            Vendedor: {negotiation.sellerResponse}
+                          </span>
+                          <span className={negotiation.buyerResponse === 'aceptada' ? 'text-green-400' : negotiation.buyerResponse === 'rechazada' ? 'text-red-400' : 'text-amber-400'}>
+                            Comprador: {negotiation.buyerResponse}
                           </span>
                         </div>
-                        <p className="text-[10px] text-gray-500 mt-0.5 font-mono">Arbitraje medio: ${formatNumber(match.midpointPrice)} USD</p>
-                        <div className="mt-1.5 flex items-center gap-1.5 sm:justify-end xl:justify-end">
-                          <span className="text-[11px] text-gray-400">Honorarios (2%):</span>
-                          <span className="font-mono font-bold text-amber-400">${formatNumber(Math.round(match.totalCommission))} USD</span>
+                      )}
+                      
+                      <div className="flex-1 flex flex-col justify-center text-right">
+                        <div className="flex items-center gap-1.5 justify-end">
+                          <span className="text-xs text-gray-400 font-medium">Margen Spread:</span>
+                          <span className={`text-sm font-mono font-black ${draft.buyerPrice - draft.sellerPrice >= 0 ? 'text-green-400' : 'text-zinc-400'}`}>
+                            {draft.buyerPrice - draft.sellerPrice >= 0 ? '+' : ''}${formatNumber(draft.buyerPrice - draft.sellerPrice)} USD
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-gray-500 mt-0.5 font-mono">Precio medio: ${formatNumber((draft.sellerPrice + draft.buyerPrice) / 2)} USD</p>
+                        <div className="mt-1.5 flex items-center gap-1.5 justify-end">
+                          <span className="text-[11px] text-gray-400">Honorarios ({draft.commissionPct}%):</span>
+                          <span className="font-mono font-bold text-amber-400">${formatNumber(Math.round(draft.quantity * ((draft.sellerPrice + draft.buyerPrice) / 2) * (draft.commissionPct / 100)))} USD</span>
                         </div>
                       </div>
 
@@ -520,14 +593,14 @@ export function Oportunidades() {
                           disabled={notifyingMatchId === match.id}
                           className="w-full sm:w-auto bg-green-600/10 hover:bg-green-600/20 text-green-400 font-bold text-xs px-5 py-3 rounded-xl transition-all border border-green-500/25 active:scale-95 duration-100 uppercase tracking-wider cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap"
                         >
-                          {notifyingMatchId === match.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <span>Notificar Cruce 📢</span>}
+                          {notifyingMatchId === match.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <span>{negotiation ? 'Reenviar propuesta' : 'Enviar propuesta'}</span>}
                         </button>
                         <button
                           type="button"
                           onClick={() => handleCloseMatch(match)}
                           className="w-full sm:w-auto bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-black font-black text-xs px-5 py-3 rounded-xl transition-all shadow-md active:scale-95 duration-100 uppercase tracking-wider cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap"
                         >
-                          Concretar Cruce 🤝
+                          {negotiation?.status === 'confirmada' ? 'Concretar confirmado' : 'Concretar manualmente'}
                         </button>
                       </div>
 
@@ -600,9 +673,18 @@ export function Oportunidades() {
                   <input required type="number" min="1" value={formData.quantity_tn} onChange={e => setFormData({...formData, quantity_tn: e.target.value})} placeholder="Tn" className="w-full bg-[#252525] border border-[#444] rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-green-500" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-400 mb-1.5">Precio (USD/tn)</label>
-                  <input required type="number" min="1" step="0.5" value={formData.price_usd} onChange={e => setFormData({...formData, price_usd: e.target.value})} placeholder="USD/tn" className="w-full bg-[#252525] border border-[#444] rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-green-500" />
+                  <label className="block text-xs font-medium text-gray-400 mb-1.5">Modalidad de precio</label>
+                  <select value={formData.priceMode} onChange={e => setFormData({...formData, priceMode: e.target.value as 'fijo' | 'a_negociar'})} className="w-full bg-[#252525] border border-[#444] rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-green-500">
+                    <option value="fijo">Precio fijo</option>
+                    <option value="a_negociar">A negociar</option>
+                  </select>
                 </div>
+                {formData.priceMode === 'fijo' && (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-400 mb-1.5">Precio (USD/tn)</label>
+                    <input required type="number" min="1" step="0.5" value={formData.price_usd} onChange={e => setFormData({...formData, price_usd: e.target.value})} placeholder="USD/tn" className="w-full bg-[#252525] border border-[#444] rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-green-500" />
+                  </div>
+                )}
                 <div>
                   <label className="block text-xs font-medium text-gray-400 mb-1.5">Provincia (Destino)</label>
                   <select 
@@ -663,6 +745,26 @@ export function Oportunidades() {
                     />
                   </div>
                 )}
+                <div>
+                  <label className="block text-xs font-medium text-gray-400 mb-1.5">Fecha de entrega</label>
+                  <input type="date" value={formData.deliveryDate} onChange={e => setFormData({...formData, deliveryDate: e.target.value})} className="w-full bg-[#252525] border border-[#444] rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-green-500" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-400 mb-1.5">Vigente hasta</label>
+                  <input required type="date" min={new Date().toISOString().slice(0, 10)} value={formData.expiresAt} onChange={e => setFormData({...formData, expiresAt: e.target.value})} className="w-full bg-[#252525] border border-[#444] rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-green-500" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-400 mb-1.5">Condición de pago</label>
+                  <input value={formData.paymentTerms} onChange={e => setFormData({...formData, paymentTerms: e.target.value})} placeholder="Ej: 7 días" className="w-full bg-[#252525] border border-[#444] rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-green-500" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-400 mb-1.5">Calidad</label>
+                  <input value={formData.grainQuality} onChange={e => setFormData({...formData, grainQuality: e.target.value})} placeholder="Ej: grado 2" className="w-full bg-[#252525] border border-[#444] rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-green-500" />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-medium text-gray-400 mb-1.5">Próxima acción</label>
+                  <input value={formData.nextAction} onChange={e => setFormData({...formData, nextAction: e.target.value})} placeholder="Qué hay que hacer después" className="w-full bg-[#252525] border border-[#444] rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-green-500" />
+                </div>
                 <div className="pt-2 col-span-1 sm:col-span-2 md:col-span-3 lg:col-span-4 xl:col-span-6 flex justify-end">
                   <button type="submit" disabled={clientsLoading} className={`w-full sm:w-auto px-6 py-2.5 rounded-lg text-xs font-bold text-white transition-colors shadow-lg flex items-center justify-center gap-2 active:scale-95 duration-100 cursor-pointer ${activeTab === 'ofertas' ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'}`}>
                     <Plus className="w-4 h-4" /> Registrar {activeTab === 'ofertas' ? 'Oferta' : 'Demanda'}
@@ -890,6 +992,65 @@ export function Oportunidades() {
       </>
       )}
 
+      {reviewAlert && (
+        <OpportunityReviewModal
+          alert={reviewAlert}
+          clients={clients}
+          onClose={() => setReviewAlert(null)}
+          onSuccess={(type) => {
+            setReviewAlert(null);
+            setActiveTab(type === 'oferta' ? 'ofertas' : 'demandas');
+            addToast('Alerta revisada y oportunidad creada con éxito', 'success');
+          }}
+        />
+      )}
+
+      {lostDialog.isOpen && (
+        <div className="fixed inset-0 z-[10001] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-[#1e1e1e] border border-zinc-700 rounded-lg max-w-md w-full p-5 space-y-4 shadow-2xl">
+            <div>
+              <h3 className="text-lg font-black text-white">Marcar oportunidad como perdida</h3>
+              <p className="text-xs text-zinc-400 mt-1">El motivo queda guardado para analizar por qué se pierden negocios.</p>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">Motivo obligatorio</label>
+              <select
+                value={lostDialog.reason}
+                onChange={e => setLostDialog(prev => ({ ...prev, reason: e.target.value }))}
+                className="w-full bg-[#252525] border border-[#444] rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-red-500"
+              >
+                <option value="">Seleccione un motivo...</option>
+                <option value="Precio fuera de mercado">Precio fuera de mercado</option>
+                <option value="El cliente desistió">El cliente desistió</option>
+                <option value="Sin disponibilidad de volumen">Sin disponibilidad de volumen</option>
+                <option value="Condiciones de pago">Condiciones de pago</option>
+                <option value="Logística o ubicación">Logística o ubicación</option>
+                <option value="Se concretó con otro corredor">Se concretó con otro corredor</option>
+              </select>
+            </div>
+            <div className="flex justify-end gap-3">
+              <button type="button" onClick={() => setLostDialog({ isOpen: false, id: '', reason: '' })} className="px-4 py-2 text-xs font-bold rounded-lg bg-zinc-800 text-white">Cancelar</button>
+              <button
+                type="button"
+                disabled={!lostDialog.reason}
+                onClick={async () => {
+                  try {
+                    await api.opportunities.update(lostDialog.id, { status: 'perdida', lostReason: lostDialog.reason });
+                    addToast('Oportunidad cerrada como perdida', 'success');
+                    setLostDialog({ isOpen: false, id: '', reason: '' });
+                  } catch (error: any) {
+                    addToast(error.message || 'No se pudo actualizar la oportunidad', 'error');
+                  }
+                }}
+                className="px-4 py-2 text-xs font-bold rounded-lg bg-red-600 hover:bg-red-700 disabled:bg-zinc-700 disabled:text-zinc-500 text-white"
+              >
+                Confirmar pérdida
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Premium Dark Theme React-based Confirmation Modal */}
       {confirmDialog.isOpen && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
@@ -1089,26 +1250,12 @@ function WhatsappAlertsView({ clients, opportunities = [], onConvert, setConfirm
     }
   };
 
-  const runMockAudio = async (mockType: 'soja' | 'maiz') => {
-    const audioKey = mockType === 'soja' ? 'MOCK_AUDIO_1' : 'MOCK_AUDIO_2';
-    addToast(`Cargando audio de prueba (${mockType === 'soja' ? 'Venta Soja' : 'Compra Maíz'})...`, 'info');
-    await processAudioBase64(audioKey, 'audio/webm');
-  };
-
   const simulateWebhook = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !simMessage.trim()) return;
 
     try {
-      const origin = typeof window !== 'undefined' ? window.location.origin : '';
-      const res = await fetch(`${origin}/api/parse-opportunity-text`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: simMessage })
-      });
-      if (!res.ok) throw new Error('Error al parsear');
-      
-      const parsed = await res.json();
+      const parsed = await api.opportunities.parseText(simMessage);
       
       const type = parsed.type === 'oferta' || parsed.type === 'demanda' ? parsed.type : 'desconocido';
       const crop = ['soja', 'maiz', 'trigo', 'sorgo', 'girasol'].includes(parsed.crop) ? parsed.crop : 'desconocido';
@@ -1215,9 +1362,9 @@ function WhatsappAlertsView({ clients, opportunities = [], onConvert, setConfirm
         <div className="bg-[#241b2f] border border-purple-900/40 p-5 rounded-xl space-y-4 shadow-lg">
           <div className="flex items-center justify-between">
             <h4 className="font-bold text-purple-200 text-sm flex items-center gap-1.5">
-              <span>⚡</span> Simulador de Mensaje Recibido
+              <span>⚡</span> Carga Manual de Oportunidad
             </h4>
-            <span className="text-xs text-purple-400 hidden sm:inline">Simula texto o notas de voz recibidos por WhatsApp</span>
+            <span className="text-xs text-purple-400 hidden sm:inline">Analiza texto o notas de voz reales con Gemini</span>
           </div>
 
           <form onSubmit={simulateWebhook} className="flex flex-col sm:flex-row gap-2">
@@ -1233,7 +1380,7 @@ function WhatsappAlertsView({ clients, opportunities = [], onConvert, setConfirm
               type="submit"
               className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-sm px-4 py-2 rounded-lg transition-colors flex items-center justify-center gap-1.5 shrink-0"
             >
-              Simular Texto
+              Analizar Texto
             </button>
           </form>
 
@@ -1241,10 +1388,10 @@ function WhatsappAlertsView({ clients, opportunities = [], onConvert, setConfirm
           <div className="pt-3 border-t border-purple-900/30 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
             <div className="space-y-1">
               <h5 className="text-xs font-bold text-purple-300 uppercase tracking-widest flex items-center gap-1.5">
-                🎙️ Simulador de Nota de Voz
+                🎙️ Nota de Voz
               </h5>
               <p className="text-[11px] text-purple-400">
-                Graba desde tu micrófono o selecciona un audio de prueba para transcribir y parsear con Gemini.
+                Graba desde tu micrófono para transcribir y analizar con Gemini.
               </p>
             </div>
 
@@ -1268,24 +1415,6 @@ function WhatsappAlertsView({ clients, opportunities = [], onConvert, setConfirm
                   <span>🎙️ Grabar Audio</span>
                 </button>
               )}
-
-              <div className="relative inline-block text-left">
-                <select
-                  disabled={isParsingAudio || isRecording}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (val) {
-                      runMockAudio(val as any);
-                      e.target.value = ''; // reset select
-                    }
-                  }}
-                  className="bg-zinc-800 border border-zinc-700 text-xs font-bold text-zinc-300 rounded-lg px-3 py-2.5 focus:outline-none cursor-pointer hover:bg-zinc-750 transition disabled:opacity-50"
-                >
-                  <option value="">📁 Audios de Prueba...</option>
-                  <option value="soja">Audio 1: Venta Soja (150 TN @ $295)</option>
-                  <option value="maiz">Audio 2: Compra Maíz (300 TN @ $160)</option>
-                </select>
-              </div>
 
               {isParsingAudio && (
                 <span className="text-xs text-purple-300 flex items-center gap-1.5 animate-pulse font-mono pl-1">
@@ -1312,7 +1441,7 @@ function WhatsappAlertsView({ clients, opportunities = [], onConvert, setConfirm
 
             // Find matching opportunities in the CRM of the opposite type
             const possibleMatches = opportunities.filter(opp => {
-              if (opp.status !== 'abierta') return false;
+              if (!['abierta', 'negociacion', 'esperando_confirmacion'].includes(opp.status)) return false;
               if (opp.clientId && matchedClient && opp.clientId === matchedClient.id) return false;
               if (alert.suggestedType === 'oferta') {
                 return opp.type === 'demanda' && opp.cropType === alert.suggestedCropType;
@@ -1390,8 +1519,8 @@ function WhatsappAlertsView({ clients, opportunities = [], onConvert, setConfirm
                   </div>
                   <div className="flex flex-col gap-0.5 px-1 border-l border-zinc-800/80">
                     <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider select-none">Volumen</span>
-                    <span className="text-xs font-black text-zinc-100 flex items-center gap-1 font-mono">
-                      ⚖️ {alert.suggestedQuantity} TN
+                    <span className={`text-xs font-black flex items-center gap-1 ${Number(alert.suggestedQuantity) > 0 ? 'text-zinc-100 font-mono' : 'text-amber-400'}`}>
+                      ⚖️ {Number(alert.suggestedQuantity) > 0 ? `${alert.suggestedQuantity} TN` : 'Cantidad pendiente'}
                     </span>
                   </div>
                   <div className="flex flex-col gap-0.5 px-1 border-l border-zinc-800/80">
@@ -1532,8 +1661,10 @@ function KanbanBoardView({
   const columns = [
     { id: 'abierta', name: 'Abiertas 📂', borderClass: 'border-zinc-700 bg-zinc-800/10' },
     { id: 'negociacion', name: 'En Negociación 🤝', borderClass: 'border-amber-500/30 bg-amber-500/5' },
+    { id: 'esperando_confirmacion', name: 'Esperando Confirmación', borderClass: 'border-blue-500/30 bg-blue-500/5' },
     { id: 'ganada', name: 'Ganadas 🏆', borderClass: 'border-green-500/30 bg-green-500/5' },
-    { id: 'perdida', name: 'Perdidas ❌', borderClass: 'border-red-500/30 bg-red-500/5' }
+    { id: 'perdida', name: 'Perdidas ❌', borderClass: 'border-red-500/30 bg-red-500/5' },
+    { id: 'vencida', name: 'Vencidas', borderClass: 'border-zinc-600 bg-zinc-700/5' }
   ];
 
   const getColumnItems = (statusId: string) => {
@@ -1544,11 +1675,17 @@ function KanbanBoardView({
       if (statusId === 'negociacion') {
         return o.status === 'negociacion';
       }
+      if (statusId === 'esperando_confirmacion') {
+        return o.status === 'esperando_confirmacion';
+      }
       if (statusId === 'ganada') {
         return o.status === 'ganada';
       }
       if (statusId === 'perdida') {
-        return o.status === 'perdida' || o.status === 'cerrada';
+        return o.status === 'perdida';
+      }
+      if (statusId === 'vencida') {
+        return o.status === 'vencida';
       }
       return false;
     });
@@ -1638,9 +1775,16 @@ function KanbanBoardView({
                           </span>
                         </div>
                         <span className={`font-mono font-black text-xs ${opp.type === 'oferta' ? 'text-green-400' : 'text-blue-400'}`}>
-                          ${formatNumber(opp.price_usd)}
+                          {opp.priceMode === 'a_negociar' ? 'A negociar' : `$${formatNumber(opp.price_usd)}`}
                         </span>
                       </div>
+                      {(opp.nextAction || opp.expiresAt || opp.lostReason) && (
+                        <div className="space-y-1 text-[10px] text-zinc-400 border-t border-zinc-800/80 pt-2">
+                          {opp.nextAction && <p><span className="text-zinc-500">Próximo:</span> {opp.nextAction}</p>}
+                          {opp.expiresAt && <p><span className="text-zinc-500">Vence:</span> {format(new Date(opp.expiresAt), 'dd/MM/yyyy')}</p>}
+                          {opp.lostReason && <p className="text-red-300"><span className="text-zinc-500">Motivo:</span> {opp.lostReason}</p>}
+                        </div>
+                      )}
 
                       {/* Hover action menu overlay */}
                       <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150 bg-[#282828] pl-1.5 py-0.5 rounded-l-md border-l border-zinc-800">

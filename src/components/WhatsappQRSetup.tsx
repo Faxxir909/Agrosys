@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Loader2, Zap, CheckCircle2, QrCode, Sliders } from 'lucide-react';
 import { socket } from '../lib/socket';
+import { api } from '../lib/api';
 
 export function WhatsappQRSetup() {
     const [status, setStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
@@ -16,13 +17,9 @@ export function WhatsappQRSetup() {
 
     const fetchSettings = async () => {
         try {
-            const origin = typeof window !== 'undefined' ? window.location.origin : '';
-            const res = await fetch(`${origin}/api/whatsapp/settings`);
-            if (res.ok) {
-                const data = await res.json();
-                setBypassHeuristic(data.bypassHeuristic);
-                setMatchTolerance(data.matchTolerance);
-            }
+            const data = await api.whatsapp.getSettings();
+            setBypassHeuristic(data.bypassHeuristic);
+            setMatchTolerance(data.matchTolerance);
         } catch (err) {
             console.warn('Error fetching WhatsApp settings', err);
         }
@@ -31,17 +28,12 @@ export function WhatsappQRSetup() {
     const updateSettings = async (newBypass: boolean, newTolerance: number) => {
         setSavingSettings(true);
         try {
-            const origin = typeof window !== 'undefined' ? window.location.origin : '';
-            const res = await fetch(`${origin}/api/whatsapp/settings`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ bypassHeuristic: newBypass, matchTolerance: newTolerance })
+            const data = await api.whatsapp.updateSettings({
+                bypassHeuristic: newBypass,
+                matchTolerance: newTolerance
             });
-            if (res.ok) {
-                const data = await res.json();
-                setBypassHeuristic(data.settings.bypassHeuristic);
-                setMatchTolerance(data.settings.matchTolerance);
-            }
+            setBypassHeuristic(data.settings.bypassHeuristic);
+            setMatchTolerance(data.settings.matchTolerance);
         } catch (err) {
             console.error('Error saving WhatsApp settings', err);
         } finally {
@@ -51,20 +43,12 @@ export function WhatsappQRSetup() {
 
     const fetchStatus = async () => {
         try {
-            const origin = typeof window !== 'undefined' ? window.location.origin : '';
-            const res = await fetch(`${origin}/api/whatsapp/status`);
-            if (!res.ok) return;
-            
-            const text = await res.text();
-            if (!text || !text.trim().startsWith('{')) {
-                return; // Non-JSON response, ignore silently
-            }
-            
-            const data = JSON.parse(text);
+            const data = await api.whatsapp.status();
             setStatus(data.status);
             setQrCode(data.qr);
         } catch (err) {
             console.warn('Error fetching WA status', err);
+            setError(err instanceof Error ? err.message : 'No se pudo consultar WhatsApp.');
         }
     };
 
@@ -92,11 +76,11 @@ export function WhatsappQRSetup() {
         setLoading(true);
         setError(null);
         try {
-            const origin = typeof window !== 'undefined' ? window.location.origin : '';
-            await fetch(`${origin}/api/whatsapp/start`, { method: 'POST' });
-            fetchStatus();
+            await api.whatsapp.start();
+            setStatus('connecting');
+            await fetchStatus();
         } catch (err) {
-            setError('Error al iniciar la conexión.');
+            setError(err instanceof Error ? err.message : 'Error al iniciar la conexión.');
         } finally {
             setLoading(false);
         }
@@ -109,12 +93,11 @@ export function WhatsappQRSetup() {
         setResetting(true);
         setError(null);
         try {
-            const origin = typeof window !== 'undefined' ? window.location.origin : '';
-            await fetch(`${origin}/api/whatsapp/reset`, { method: 'POST' });
+            await api.whatsapp.reset();
             setStatus('disconnected');
             setQrCode(null);
         } catch (err) {
-            setError('Error al desvincular la sesión.');
+            setError(err instanceof Error ? err.message : 'Error al desvincular la sesión.');
         } finally {
             setResetting(false);
         }

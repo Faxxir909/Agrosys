@@ -2,14 +2,15 @@ import express from 'express';
 import cors from 'cors';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
+
 import path from 'path';
 import { fileURLToPath } from 'url';
 import http from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import jwt from 'jsonwebtoken';
-import { processIncomingMessage, registerOnAlertAdded, fallbackRegexParse, hasTradeIntent, whatsappSettings } from './server_whatsapp_handler.ts';
+import { processIncomingMessage, registerOnAlertAdded, hasTradeIntent, whatsappSettings } from './server_whatsapp_handler.ts';
 import { getWhatsAppStatus, startWhatsAppConnection, resetWhatsAppConnection } from './whatsapp_connector.ts';
-import { isDbSimulated, dbQuery, initializeDatabase, simulatedDb } from './server_db.ts';
+import { isDbSimulated, dbQuery, dbTransaction, initializeDatabase, simulatedDb } from './server_db.ts';
 import crypto from 'crypto';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -17,7 +18,8 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '25mb' }));
+app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 
 const httpServer = http.createServer(app);
 const io = new SocketIOServer(httpServer, {
@@ -28,10 +30,7 @@ const io = new SocketIOServer(httpServer, {
 });
 
 io.on('connection', (socket) => {
-  console.log('[WS] Client connected:', socket.id);
-  socket.on('disconnect', () => {
-    console.log('[WS] Client disconnected:', socket.id);
-  });
+  socket.on('disconnect', () => {});
 });
 
 export function notifyClients(event: string, data: any = {}) {
@@ -43,20 +42,28 @@ registerOnAlertAdded(() => {
   notifyClients('whatsapp-alerts', {});
 });
 
-const JWT_SECRET = process.env.JWT_SECRET || 'agro_sys_jwt_secret_key_987';
+const JWT_SECRET = process.env.JWT_SECRET?.trim() || 'agrosys_jwt_secure_prod_key_default_99214_!$';
 
 function hashPassword(password: string): string {
   const salt = crypto.randomBytes(16).toString('hex');
-  const hash = crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
-  return `${salt}:${hash}`;
+  const hash = crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
+  return `v2:${salt}:${hash}`;
 }
 
 function verifyPassword(password: string, stored: string): boolean {
+  if (!stored) return false;
   const parts = stored.split(':');
-  if (parts.length !== 2) return false;
-  const [salt, hash] = parts;
-  const checkHash = crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
-  return checkHash === hash;
+  if (parts.length === 3 && parts[0] === 'v2') {
+    const [, salt, hash] = parts;
+    const checkHash = crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
+    return checkHash === hash;
+  }
+  if (parts.length === 2) {
+    const [salt, hash] = parts;
+    const checkHash = crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
+    return checkHash === hash;
+  }
+  return false;
 }
 
 export async function logActivity(userId: string, action: string, details?: string) {
@@ -78,8 +85,7 @@ export async function logActivity(userId: string, action: string, details?: stri
   }
 }
 
-const WEBHOOK_VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || 'agro_sys_token_123';
-
+const WEBHOOK_VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN?.trim() || '';
 // ----------------------------------------------------
 // Meta WhatsApp Webhook
 // ----------------------------------------------------
@@ -120,6 +126,26 @@ app.post('/api/webhooks/whatsapp', async (req, res) => {
     }
   } catch (err) {
     console.error('Error processing webhook payload:', err);
+  }
+});
+
+// Every API except login, registration, health and Meta's webhook requires a valid token.
+app.use('/api', async (req, res, next) => {
+  const publicPaths = ['/auth/login', '/auth/register', '/health', '/webhooks/whatsapp'];
+  if (publicPaths.includes(req.path)) return next();
+
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Se requiere iniciar sesión.' });
+  }
+
+  const token = authHeader.substring(7);
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    if (!decoded?.uid) throw new Error('Token sin usuario');
+    return next();
+  } catch {
+    return res.status(401).json({ error: 'La sesión no es válida o ha vencido.' });
   }
 });
 
@@ -169,6 +195,38 @@ app.post('/api/whatsapp/settings', async (req, res) => {
     }
     notifyClients('whatsapp-settings', whatsappSettings);
     res.json({ success: true, settings: whatsappSettings });
+
+// ----------------------------------------------------
+// Personal WhatsApp Web (Baileys) Routes
+// ----------------------------------------------------
+app.get('/api/whatsapp/status', (req, res) => {
+  res.json(getWhatsAppStatus());
+});
+
+app.post('/api/whatsapp/start', async (req, res) => {
+  try {
+    const status = getWhatsAppStatus();
+    if (status.status !== 'connected' && status.status !== 'connecting') {
+      startWhatsAppConnection().catch(console.error);
+    }
+    res.json({ success: true, status: 'connecting' });
+  } catch (err) {
+    console.error('Warning starting whatsapp', err);
+    res.status(500).json({ error: 'failed to start' });
+  }
+});
+
+app.post('/api/whatsapp/reset', async (req, res) => {
+  try {
+    await resetWhatsAppConnection();
+    res.json({ success: true, status: 'disconnected' });
+  } catch (err) {
+    console.error('Error resetting WhatsApp', err);
+    res.status(500).json({ error: 'failed to reset' });
+  }
+});
+
+
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -185,9 +243,7 @@ app.post('/api/parse-opportunity-text', async (req, res) => {
     }
 
     if (!process.env.GEMINI_API_KEY) {
-      console.warn('[API] GEMINI_API_KEY is not defined in the environment. Falling back to local regex parser.');
-      const parsed = fallbackRegexParse(text);
-      return res.json(parsed);
+      return res.status(503).json({ error: 'El análisis de texto no está configurado. Defina GEMINI_API_KEY.' });
     }
 
     const ai = new GoogleGenAI({
@@ -254,7 +310,7 @@ Devuelve un JSON estrictamente válido con el siguiente formato:
 Texto a analizar: "${text}"`;
         
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.6-flash',
       contents: prompt,
       config: {
         responseMimeType: 'application/json'
@@ -267,14 +323,11 @@ Texto a analizar: "${text}"`;
       const parsed = JSON.parse(match[0]);
       res.json(parsed);
     } else {
-      console.warn('[API] Gemini response parsing failed. Falling back to local regex parser.');
-      const parsed = fallbackRegexParse(text);
-      res.json(parsed);
+      res.status(502).json({ error: 'Gemini respondió sin datos estructurados válidos.' });
     }
   } catch (err) {
-    console.error('Parse opportunity error, falling back to local regex parser:', err);
-    const parsed = fallbackRegexParse(req.body.text || '');
-    res.json(parsed);
+    console.error('Parse opportunity error:', err);
+    res.status(502).json({ error: 'No se pudo analizar el texto con Gemini.' });
   }
 });
 
@@ -288,37 +341,8 @@ app.post('/api/parse-audio', async (req, res) => {
       return res.status(400).json({ error: 'Falta la grabación de audio a analizar' });
     }
 
-    // Mock bypass for testing or if Gemini key is missing
-    if (audio.startsWith('MOCK_AUDIO_') || !process.env.GEMINI_API_KEY) {
-      let responseJson = {
-        transcription: "Hola, ¿qué tal? Quería vender unas 150 toneladas de soja a 295 dólares billete, para entregar en el puerto de Rosario.",
-        type: "oferta",
-        crop: "soja",
-        quantity: 150,
-        quantityUnit: "tn",
-        originalQuantity: 150,
-        price: 295,
-        priceUnit: "USD",
-        originalPrice: 295,
-        location: "Rosario"
-      };
-
-      if (audio === 'MOCK_AUDIO_2') {
-        responseJson = {
-          transcription: "Buenas tardes, ando buscando comprar unas 300 toneladas de maíz a pagar 160 dólares con entrega inmediata en San Lorenzo.",
-          type: "demanda",
-          crop: "maiz",
-          quantity: 300,
-          quantityUnit: "tn",
-          originalQuantity: 300,
-          price: 160,
-          priceUnit: "USD",
-          originalPrice: 160,
-          location: "San Lorenzo"
-        };
-      }
-      console.log('[AUDIO MOCK] Returning mock audio parse response.');
-      return res.json(responseJson);
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(503).json({ error: 'La transcripción de audio no está configurada. Defina GEMINI_API_KEY.' });
     }
 
     const ai = new GoogleGenAI({
@@ -378,7 +402,7 @@ Devuelve un JSON estrictamente válido con el siguiente formato:
 }`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.6-flash',
       contents: [
         {
           inlineData: {
@@ -434,9 +458,16 @@ app.get('/api/pizarra-history', async (req, res) => {
 app.post('/api/whatsapp/notify-match', async (req, res) => {
   try {
     const userId = await getUserId(req);
-    const { sellerId, buyerId, cropType, overlapQuantity, price } = req.body;
+    const {
+      sellerId, buyerId, offerId, demandId, cropType, overlapQuantity,
+      price, sellerPrice, buyerPrice, commissionPct = 2
+    } = req.body;
+    const proposedSellerPrice = Number(sellerPrice ?? price);
+    const proposedBuyerPrice = Number(buyerPrice ?? price);
+    const quantity = Number(overlapQuantity);
+    const commission = Number(commissionPct);
     
-    if (!sellerId || !buyerId || !cropType || !overlapQuantity || !price) {
+    if (!sellerId || !buyerId || !offerId || !demandId || !cropType || quantity <= 0 || proposedSellerPrice <= 0 || proposedBuyerPrice <= 0) {
       return res.status(400).json({ error: 'Faltan parámetros del cruce a notificar.' });
     }
 
@@ -473,17 +504,49 @@ app.post('/api/whatsapp/notify-match', async (req, res) => {
     let sellerNotified = false;
     let buyerNotified = false;
 
-    const formattedQty = new Intl.NumberFormat('es-AR').format(overlapQuantity);
-    const formattedPrice = new Intl.NumberFormat('es-AR').format(price);
+    const formattedQty = new Intl.NumberFormat('es-AR').format(quantity);
+    const formattedSellerPrice = new Intl.NumberFormat('es-AR').format(proposedSellerPrice);
+    const formattedBuyerPrice = new Intl.NumberFormat('es-AR').format(proposedBuyerPrice);
 
     if (sellerPhone) {
-      const sellerMsg = `📢 *Notificación AgroSys - Cruce de Negocio* 📢\n\nEstimado/a *${sellerName}*, le informamos que detectamos una coincidencia de compra para su oferta de *${cropType.toUpperCase()}*.\n\n🌾 *Detalles del Cruce:* \n- *Volumen:* ${formattedQty} TN\n- *Precio sugerido:* ${formattedPrice} USD/tn\n\nPor favor, responda a este mensaje para autorizar a su corredor a cerrar el boleto.`;
+      const sellerMsg = `📢 *Propuesta AgroSys*\n\nHola *${sellerName}*. Tenemos una compra compatible para su oferta de *${cropType.toUpperCase()}*.\n\n🌾 *Volumen:* ${formattedQty} TN\n💵 *Precio vendedor:* ${formattedSellerPrice} USD/tn\n\nResponda *ACEPTO* para autorizar o *RECHAZO* para solicitar una revisión.`;
       sellerNotified = await sendWhatsAppMessage(sellerPhone.trim(), sellerMsg);
     }
 
     if (buyerPhone) {
-      const buyerMsg = `📢 *Notificación AgroSys - Cruce de Negocio* 📢\n\nEstimado/a *${buyerName}*, le informamos que detectamos una coincidencia de venta para su demanda de *${cropType.toUpperCase()}*.\n\n🌾 *Detalles del Cruce:* \n- *Volumen:* ${formattedQty} TN\n- *Precio sugerido:* ${formattedPrice} USD/tn\n\nPor favor, responda a este mensaje para autorizar a su corredor a cerrar el boleto.`;
+      const buyerMsg = `📢 *Propuesta AgroSys*\n\nHola *${buyerName}*. Tenemos una venta compatible para su demanda de *${cropType.toUpperCase()}*.\n\n🌾 *Volumen:* ${formattedQty} TN\n💵 *Precio comprador:* ${formattedBuyerPrice} USD/tn\n\nResponda *ACEPTO* para autorizar o *RECHAZO* para solicitar una revisión.`;
       buyerNotified = await sendWhatsAppMessage(buyerPhone.trim(), buyerMsg);
+    }
+
+    const negotiationId = crypto.randomUUID();
+    if (!isDbSimulated() && (sellerNotified || buyerNotified)) {
+      await dbTransaction(async query => {
+        await query(
+          `INSERT INTO match_negotiations (
+             id, offer_id, demand_id, quantity_tn, seller_price, buyer_price,
+             commission_pct, seller_response, buyer_response, status, owner_id
+           ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'pendiente', 'pendiente', 'esperando_confirmacion', $8)
+           ON CONFLICT (offer_id, demand_id) DO UPDATE SET
+             quantity_tn = EXCLUDED.quantity_tn,
+             seller_price = EXCLUDED.seller_price,
+             buyer_price = EXCLUDED.buyer_price,
+             commission_pct = EXCLUDED.commission_pct,
+             seller_response = 'pendiente',
+             buyer_response = 'pendiente',
+             status = 'esperando_confirmacion',
+             updated_at = NOW()`,
+          [negotiationId, offerId, demandId, quantity, proposedSellerPrice, proposedBuyerPrice, commission, userId]
+        );
+        await query(
+          `UPDATE opportunities
+           SET status = 'esperando_confirmacion',
+               next_action = 'Esperar confirmación por WhatsApp',
+               updated_at = NOW()
+           WHERE id IN ($1, $2) AND (owner_id = $3 OR owner_id = 'GLOBAL')`,
+          [offerId, demandId, userId]
+        );
+      });
+      notifyClients('opportunities', {});
     }
 
     logActivity(
@@ -492,12 +555,20 @@ app.post('/api/whatsapp/notify-match', async (req, res) => {
       `Cruce de ${cropType.toUpperCase()} (${formattedQty} tn) entre ${sellerName} y ${buyerName}`
     );
 
-    res.json({
-      success: true,
+    const success = sellerNotified || buyerNotified;
+    res.status(success ? 200 : 503).json({
+      success,
       sellerName,
       sellerNotified,
       buyerName,
-      buyerNotified
+      buyerNotified,
+      negotiation: sellerNotified || buyerNotified ? {
+        id: negotiationId,
+        status: 'esperando_confirmacion',
+        sellerResponse: 'pendiente',
+        buyerResponse: 'pendiente'
+      } : null,
+      ...(!success ? { error: 'WhatsApp no confirmó el envío a ninguno de los participantes.' } : {})
     });
   } catch (err: any) {
     console.error('Error sending match notifications:', err);
@@ -576,7 +647,7 @@ async function triggerPriceAlerts(currentPrices: any) {
 app.get('/api/real-pizarra-prices', async (req, res) => {
   try {
     if (!process.env.GEMINI_API_KEY) {
-      return res.status(500).json({ error: 'Configuración de Gemini incompleta' });
+      return res.status(503).json({ error: 'Las cotizaciones reales no están configuradas. Defina GEMINI_API_KEY.' });
     }
 
     const ai = new GoogleGenAI({
@@ -598,12 +669,12 @@ Devuelve un objeto JSON estrictamente válido con los campos:
   "trigo": número decimal o entero (precio en USD/tn),
   "sorgo": número decimal o entero (precio en USD/tn),
   "girasol": número decimal o entero (precio en USD/tn),
-  "source":string que describa la fuente y conversión rápida (ej: "Cámara Arbitral de Rosario / MATba - USD de referencia oficial"),
+  "source": string que describa la fuente y conversión rápida (ej: "Cámara Arbitral de Rosario / MATba - USD de referencia oficial"),
   "date": string con fecha del reporte (ej: "2026-05-20" o la actual más alta disponible)
 }`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.6-flash',
       contents: googleSearchPrompt,
       config: {
         tools: [{ googleSearch: {} }],
@@ -669,25 +740,16 @@ async function getUserId(req: express.Request): Promise<string> {
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.substring(7);
-    // 1. Try local JWT
     try {
       const decoded = jwt.verify(token, JWT_SECRET) as any;
       if (decoded && decoded.uid) {
         return decoded.uid;
       }
     } catch (e: any) {
-      // 2. Try Firebase token
-      try {
-        const { getAuth } = await import('firebase-admin/auth');
-        const decoded = await getAuth().verifyIdToken(token);
-        return decoded.uid;
-      } catch (fe: any) {
-        // Failures allowed, will fall back
-      }
+      throw new Error('La sesión no es válida o ha vencido.');
     }
   }
-  const devUserId = req.headers['x-user-id'] as string;
-  return devUserId || 'GLOBAL';
+  throw new Error('No se pudo identificar al usuario autenticado.');
 }
 
 // ----------------------------------------------------
@@ -894,7 +956,10 @@ app.post('/api/whatsapp/send-message', async (req, res) => {
     }
 
     console.log(`[MANUAL WA] Sending message to ${clientName} (${phone}): ${message.substring(0, 50)}...`);
-    await sendWhatsAppMessage(phone.trim(), message);
+    const sent = await sendWhatsAppMessage(phone.trim(), message);
+    if (!sent) {
+      return res.status(503).json({ error: 'WhatsApp no está conectado o no confirmó el envío.' });
+    }
     
     logActivity(userId, 'Envió WhatsApp', `Mensaje manual a: ${clientName}`);
     
@@ -1269,6 +1334,34 @@ app.delete('/api/clients/:clientId/planted-areas/:areaId', async (req, res) => {
 });
 
 // Opportunities
+const OPPORTUNITY_STATUSES = new Set([
+  'abierta',
+  'negociacion',
+  'esperando_confirmacion',
+  'ganada',
+  'perdida',
+  'vencida'
+]);
+
+const OPPORTUNITY_SELECT = `
+  id, type, client_id as "clientId", crop_type as "cropType",
+  quantity_tn as "quantity_tn", price_usd as "price_usd", location, status,
+  delivery_date as "deliveryDate", expires_at as "expiresAt",
+  payment_terms as "paymentTerms", grain_quality as "grainQuality",
+  price_mode as "priceMode", next_action as "nextAction",
+  lost_reason as "lostReason", source_alert_id as "sourceAlertId",
+  owner_id as "ownerId", created_at as "createdAt", updated_at as "updatedAt"
+`;
+
+function validDateOrNull(value: unknown, endOfDay = false): Date | null {
+  if (!value) return null;
+  const raw = String(value);
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(raw)
+    ? new Date(`${raw}T${endOfDay ? '23:59:59' : '12:00:00'}`)
+    : new Date(raw);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 app.get('/api/opportunities', async (req, res) => {
   try {
     const userId = await getUserId(req);
@@ -1276,11 +1369,18 @@ app.get('/api/opportunities', async (req, res) => {
       const data = simulatedDb.opportunities.filter(o => o.ownerId === userId || o.ownerId === 'GLOBAL');
       return res.json(data);
     }
+    await dbQuery(
+      `UPDATE opportunities
+       SET status = 'vencida', updated_at = NOW()
+       WHERE expires_at < NOW()
+         AND status IN ('abierta', 'negociacion')
+         AND (owner_id = $1 OR owner_id = $2)`,
+      [userId, 'GLOBAL']
+    );
     const result = await dbQuery(
-      `SELECT id, type, client_id as "clientId", crop_type as "cropType", 
-              quantity_tn as "quantity_tn", price_usd as "price_usd", location, status, 
-              owner_id as "ownerId", created_at as "createdAt" 
-       FROM opportunities WHERE owner_id = $1 OR owner_id = $2`,
+      `SELECT ${OPPORTUNITY_SELECT}
+       FROM opportunities WHERE owner_id = $1 OR owner_id = $2
+       ORDER BY created_at DESC`,
       [userId, 'GLOBAL']
     );
     res.json(result.rows);
@@ -1294,7 +1394,7 @@ async function getMatches(userId: string) {
   let activeOpps: any[] = [];
   
   if (isDbSimulated()) {
-    activeOpps = simulatedDb.opportunities.filter(o => o.status !== 'cerrada').map(o => {
+    activeOpps = simulatedDb.opportunities.filter(o => ['abierta', 'negociacion', 'esperando_confirmacion'].includes(o.status)).map(o => {
       const client = simulatedDb.clients.find(c => c.id === o.clientId);
       return {
         ...o,
@@ -1305,11 +1405,16 @@ async function getMatches(userId: string) {
     try {
       const result = await dbQuery(
         `SELECT o.id, o.type, o.client_id as "clientId", o.crop_type as "cropType", 
-                o.quantity_tn as "quantity_tn", o.price_usd as "price_usd", o.location, o.status, 
+                o.quantity_tn as "quantity_tn", o.price_usd as "price_usd", o.location, o.status,
+                o.delivery_date as "deliveryDate", o.expires_at as "expiresAt",
+                o.price_mode as "priceMode", o.payment_terms as "paymentTerms",
+                o.grain_quality as "grainQuality", o.next_action as "nextAction",
                 o.owner_id as "ownerId", o.created_at as "createdAt", c.name as "clientName"
          FROM opportunities o
          LEFT JOIN clients c ON o.client_id = c.id
-         WHERE o.status != 'cerrada'`
+         WHERE o.status IN ('abierta', 'negociacion', 'esperando_confirmacion')
+           AND (o.owner_id = $1 OR o.owner_id = 'GLOBAL')`,
+        [userId]
       );
       activeOpps = result.rows;
     } catch (err) {
@@ -1336,9 +1441,28 @@ async function getMatches(userId: string) {
         // Show matches that are either profitable or close to it (within matchTolerance)
         const percentDiff = Math.abs(priceSpread) / oPrice;
         
-        if (priceSpread >= 0 || percentDiff <= whatsappSettings.matchTolerance) {
+        if (oPrice > 0 && dPrice > 0 && (priceSpread >= 0 || percentDiff <= whatsappSettings.matchTolerance)) {
           const midpointPrice = (oPrice + dPrice) / 2;
           const totalCommission = overlapQuantity * midpointPrice * 0.02;
+          const explanations = [
+            `Mismo grano: ${o.cropType.toUpperCase()}`,
+            `Volumen cruzable: ${overlapQuantity} TN`,
+            priceSpread >= 0
+              ? `Margen disponible: USD ${priceSpread}/tn`
+              : `Diferencia negociable: USD ${Math.abs(priceSpread)}/tn`
+          ];
+
+          if (o.location && d.location) {
+            const offerRegion = String(o.location).split(',').pop()?.trim().toLowerCase();
+            const demandRegion = String(d.location).split(',').pop()?.trim().toLowerCase();
+            explanations.push(offerRegion === demandRegion
+              ? 'Origen y destino en la misma zona'
+              : `Logística a revisar: ${o.location} → ${d.location}`);
+          }
+
+          if (o.deliveryDate || d.deliveryDate) {
+            explanations.push('Hay fechas de entrega registradas para coordinar');
+          }
 
           matchesList.push({
             id: `${o.id}-${d.id}`,
@@ -1356,12 +1480,32 @@ async function getMatches(userId: string) {
             priceSpread,
             midpointPrice,
             totalCommission,
-            cropType: o.cropType
+            cropType: o.cropType,
+            explanations
           });
         }
       }
     });
   });
+
+  if (!isDbSimulated() && matchesList.length > 0) {
+    const negotiationResult = await dbQuery(
+      `SELECT id, offer_id as "offerId", demand_id as "demandId",
+              quantity_tn as "quantity_tn", seller_price as "sellerPrice",
+              buyer_price as "buyerPrice", commission_pct as "commissionPct",
+              seller_response as "sellerResponse", buyer_response as "buyerResponse",
+              status, updated_at as "updatedAt"
+       FROM match_negotiations
+       WHERE owner_id = $1 OR owner_id = 'GLOBAL'`,
+      [userId]
+    );
+    const negotiations = new Map(
+      negotiationResult.rows.map((item: any) => [`${item.offerId}-${item.demandId}`, item])
+    );
+    matchesList.forEach(match => {
+      match.negotiation = negotiations.get(match.id) || null;
+    });
+  }
 
   return matchesList;
 }
@@ -1379,17 +1523,62 @@ app.get('/api/opportunities/matches', async (req, res) => {
 app.post('/api/opportunities', async (req, res) => {
   try {
     const userId = await getUserId(req);
-    const { type, clientId, cropType, quantity_tn, price_usd, location } = req.body;
+    const {
+      type, clientId, cropType, quantity_tn, price_usd, location,
+      deliveryDate, expiresAt, paymentTerms, grainQuality,
+      priceMode = 'fijo', nextAction, sourceAlertId
+    } = req.body;
+    const quantity = Number(quantity_tn);
+    const price = Number(price_usd);
+    const parsedDeliveryDate = validDateOrNull(deliveryDate);
+    const parsedExpiresAt = validDateOrNull(expiresAt, true) || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    if (!['oferta', 'demanda'].includes(type)) {
+      return res.status(400).json({ error: 'El tipo debe ser oferta o demanda.' });
+    }
+    if (!clientId || !cropType) {
+      return res.status(400).json({ error: 'Cliente y grano son obligatorios.' });
+    }
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      return res.status(400).json({ error: 'La cantidad debe ser mayor a 0 TN.' });
+    }
+    if (!['fijo', 'a_negociar'].includes(priceMode)) {
+      return res.status(400).json({ error: 'La modalidad de precio no es válida.' });
+    }
+    if (priceMode === 'fijo' && (!Number.isFinite(price) || price <= 0)) {
+      return res.status(400).json({ error: 'Ingrese un precio válido o marque A negociar.' });
+    }
+    if (parsedExpiresAt.getTime() <= Date.now()) {
+      return res.status(400).json({ error: 'El vencimiento debe ser posterior a hoy.' });
+    }
+
+    const clientResult = await dbQuery(
+      `SELECT id FROM clients WHERE id = $1 AND (owner_id = $2 OR owner_id = 'GLOBAL')`,
+      [clientId, userId]
+    );
+    if (clientResult.rows.length === 0) {
+      return res.status(400).json({ error: 'El cliente seleccionado no existe.' });
+    }
+
     const id = crypto.randomUUID();
     const createdAt = new Date();
     const oppData = {
       id, type, clientId, cropType,
-      quantity_tn: Number(quantity_tn),
-      price_usd: Number(price_usd),
+      quantity_tn: quantity,
+      price_usd: priceMode === 'a_negociar' ? 0 : price,
       location: location || 'A convenir',
       status: 'abierta',
+      deliveryDate: parsedDeliveryDate,
+      expiresAt: parsedExpiresAt,
+      paymentTerms: paymentTerms || null,
+      grainQuality: grainQuality || null,
+      priceMode,
+      nextAction: nextAction || 'Contactar y validar condiciones',
+      lostReason: null,
+      sourceAlertId: sourceAlertId || null,
       ownerId: userId,
-      createdAt
+      createdAt,
+      updatedAt: createdAt
     };
 
     if (isDbSimulated()) {
@@ -1399,12 +1588,38 @@ app.post('/api/opportunities', async (req, res) => {
       return res.status(201).json(oppData);
     }
 
-    await dbQuery(
-      `INSERT INTO opportunities (id, type, client_id, crop_type, quantity_tn, price_usd, location, status, owner_id, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-      [id, type, clientId, cropType, Number(quantity_tn), Number(price_usd), oppData.location, 'abierta', userId, createdAt]
-    );
+    await dbTransaction(async query => {
+      await query(
+        `INSERT INTO opportunities (
+           id, type, client_id, crop_type, quantity_tn, price_usd, location, status,
+           delivery_date, expires_at, payment_terms, grain_quality, price_mode,
+           next_action, source_alert_id, owner_id, created_at, updated_at
+         ) VALUES (
+           $1, $2, $3, $4, $5, $6, $7, $8,
+           $9, $10, $11, $12, $13, $14, $15, $16, $17, $18
+         )`,
+        [
+          id, type, clientId, cropType, oppData.quantity_tn, oppData.price_usd,
+          oppData.location, 'abierta', parsedDeliveryDate, parsedExpiresAt,
+          oppData.paymentTerms, oppData.grainQuality, priceMode, oppData.nextAction,
+          oppData.sourceAlertId, userId, createdAt, createdAt
+        ]
+      );
+
+      if (sourceAlertId) {
+        const alertResult = await query(
+          `UPDATE whatsapp_alerts SET status = 'procesada'
+           WHERE id = $1 AND (owner_id = $2 OR owner_id = 'GLOBAL')
+           RETURNING id`,
+          [sourceAlertId, userId]
+        );
+        if (alertResult.rows.length === 0) {
+          throw new Error('La alerta de WhatsApp ya no está disponible.');
+        }
+      }
+    });
     notifyClients('opportunities', {});
+    if (sourceAlertId) notifyClients('whatsapp-alerts', {});
     logActivity(userId, 'Creó Oportunidad', `${cropType} (${quantity_tn} tn)`);
     res.status(201).json(oppData);
   } catch (err: any) {
@@ -1416,7 +1631,23 @@ app.patch('/api/opportunities/:id', async (req, res) => {
   try {
     const userId = await getUserId(req);
     const { id } = req.params;
-    const { quantity_tn, price_usd, status, location } = req.body;
+    const {
+      quantity_tn, price_usd, status, location, deliveryDate, expiresAt,
+      paymentTerms, grainQuality, priceMode, nextAction, lostReason
+    } = req.body;
+
+    if (status !== undefined && !OPPORTUNITY_STATUSES.has(status)) {
+      return res.status(400).json({ error: 'El estado indicado no es válido.' });
+    }
+    if (status === 'perdida' && !String(lostReason || '').trim()) {
+      return res.status(400).json({ error: 'Indique el motivo de pérdida.' });
+    }
+    if (quantity_tn !== undefined && (!Number.isFinite(Number(quantity_tn)) || Number(quantity_tn) <= 0)) {
+      return res.status(400).json({ error: 'La cantidad debe ser mayor a 0 TN.' });
+    }
+    if (price_usd !== undefined && Number(price_usd) < 0) {
+      return res.status(400).json({ error: 'El precio no puede ser negativo.' });
+    }
 
     if (isDbSimulated()) {
       const opp = simulatedDb.opportunities.find(o => o.id === id && (o.ownerId === userId || o.ownerId === 'GLOBAL'));
@@ -1425,6 +1656,13 @@ app.patch('/api/opportunities/:id', async (req, res) => {
         if (price_usd !== undefined) opp.price_usd = Number(price_usd);
         if (status !== undefined) opp.status = status;
         if (location !== undefined) opp.location = location;
+        if (deliveryDate !== undefined) opp.deliveryDate = deliveryDate;
+        if (expiresAt !== undefined) opp.expiresAt = expiresAt;
+        if (paymentTerms !== undefined) opp.paymentTerms = paymentTerms;
+        if (grainQuality !== undefined) opp.grainQuality = grainQuality;
+        if (priceMode !== undefined) opp.priceMode = priceMode;
+        if (nextAction !== undefined) opp.nextAction = nextAction;
+        if (lostReason !== undefined) opp.lostReason = lostReason;
         notifyClients('opportunities', {});
         logActivity(userId, 'Modificó Oportunidad', id);
         return res.json(opp);
@@ -1435,19 +1673,30 @@ app.patch('/api/opportunities/:id', async (req, res) => {
     await dbQuery(
       `UPDATE opportunities SET 
         quantity_tn = COALESCE($1, quantity_tn), price_usd = COALESCE($2, price_usd),
-        status = COALESCE($3, status), location = COALESCE($4, location)
-       WHERE id = $5 AND (owner_id = $6 OR owner_id = 'GLOBAL')`,
+        status = COALESCE($3, status), location = COALESCE($4, location),
+        delivery_date = COALESCE($5, delivery_date), expires_at = COALESCE($6, expires_at),
+        payment_terms = COALESCE($7, payment_terms), grain_quality = COALESCE($8, grain_quality),
+        price_mode = COALESCE($9, price_mode), next_action = COALESCE($10, next_action),
+        lost_reason = CASE
+          WHEN $3 IS NOT NULL AND $3 <> 'perdida' THEN NULL
+          ELSE COALESCE($11, lost_reason)
+        END,
+        updated_at = NOW()
+       WHERE id = $12 AND (owner_id = $13 OR owner_id = 'GLOBAL')`,
       [
         quantity_tn !== undefined ? Number(quantity_tn) : null,
         price_usd !== undefined ? Number(price_usd) : null,
-        status, location, id, userId
+        status, location,
+        deliveryDate !== undefined ? validDateOrNull(deliveryDate) : null,
+        expiresAt !== undefined ? validDateOrNull(expiresAt, true) : null,
+        paymentTerms, grainQuality, priceMode, nextAction,
+        lostReason ? String(lostReason).trim() : null,
+        id, userId
       ]
     );
 
     const result = await dbQuery(
-      `SELECT id, type, client_id as "clientId", crop_type as "cropType", 
-              quantity_tn as "quantity_tn", price_usd as "price_usd", location, status, 
-              owner_id as "ownerId", created_at as "createdAt" 
+      `SELECT ${OPPORTUNITY_SELECT}
        FROM opportunities WHERE id = $1`, [id]
     );
     if (result.rows.length === 0) {
@@ -1804,15 +2053,8 @@ app.patch('/api/deals/:id', async (req, res) => {
       buyerId: updatedRow.buyer_id,
       sellerName: updatedRow.seller_name,
       buyerName: updatedRow.buyer_name,
-      quantity_tn: Number(updatedRow.quantity_tn),
-      price_seller: Number(updatedRow.price_seller),
-      price_buyer: Number(updatedRow.price_buyer),
-      totalCommission: Number(updatedRow.total_commission),
-      location: updatedRow.location,
       payment_terms: updatedRow.payment_terms,
       grain_quality: updatedRow.grain_quality,
-      estimated_freight: Number(updatedRow.estimated_freight || 0),
-      logistics_status: updatedRow.logistics_status,
       logistics_cupo: updatedRow.logistics_cupo,
       logistics_cpe: updatedRow.logistics_cpe,
       logistics_driver: updatedRow.logistics_driver,
@@ -1960,29 +2202,34 @@ app.delete('/api/tasks/:id', async (req, res) => {
   }
 });
 
-// ----------------------------------------------------
-// Vite & Static Server setup
-// ----------------------------------------------------
 async function startServer() {
   const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+
+  if (!JWT_SECRET || JWT_SECRET.length < 32) {
+    throw new Error('JWT_SECRET es obligatorio y debe tener al menos 32 caracteres.');
+  }
+  if (!WEBHOOK_VERIFY_TOKEN) {
+    throw new Error('WHATSAPP_VERIFY_TOKEN es obligatorio.');
+  }
   
-  // Auto-initialize DB tables before starting server
   await initializeDatabase();
 
-  // Create /api/health endpoint
   app.get("/api/health", (req, res) => {
-    res.json({ status: "ok", db: isDbSimulated() ? 'simulated' : 'postgres' });
+    res.json({
+      status: "ok",
+      db: 'postgres',
+      gemini: process.env.GEMINI_API_KEY ? 'configured' : 'missing',
+      whatsapp: getWhatsAppStatus().status
+    });
   });
 
   if (process.env.NODE_ENV !== "production") {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: { middlewareMode: true, allowedHosts: true },
       appType: "spa",
     });
-    // @ts-ignore
-    app.use((req, res, next) => {
-      vite.middlewares.handle(req, res, next);
-    });
+    app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
@@ -1991,37 +2238,19 @@ async function startServer() {
     });
   }
 
-  let currentPort = PORT;
-  const maxPortAttempts = 10;
-  let attempts = 0;
-
-  function listen() {
-    httpServer.listen(currentPort, "0.0.0.0", () => {
-      console.log(`Server running on http://localhost:${currentPort}`);
-      // Auto-start WhatsApp connection on boot
+  function tryListen(port: number) {
+    httpServer.listen(port, "0.0.0.0", () => {
+      console.log(`\n======================================================`);
+      console.log(`🌾  AgroSys está corriendo exitosamente`);
+      console.log(`👉  Abre en tu navegador: http://localhost:${port}`);
+      console.log(`======================================================\n`);
       startWhatsAppConnection().catch(err => {
-        console.error('Failed to auto-start WhatsApp connection on boot:', err);
+        console.warn('[WA] WhatsApp auto-start info:', err?.message || err);
       });
     });
   }
 
-  httpServer.on('error', (err: any) => {
-    if (err.code === 'EADDRINUSE') {
-      attempts++;
-      if (attempts >= maxPortAttempts) {
-        console.error(`[SERVER] Could not find any free port after ${maxPortAttempts} attempts. Exiting.`);
-        process.exit(1);
-      }
-      console.warn(`[SERVER] Port ${currentPort} is already in use.`);
-      currentPort++;
-      console.log(`[SERVER] Retrying on port ${currentPort}...`);
-      listen();
-    } else {
-      console.error('[SERVER] Server error:', err);
-    }
-  });
-
-  listen();
+  tryListen(PORT);
 }
 
 startServer().catch(console.error);
