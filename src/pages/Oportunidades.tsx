@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, CheckCircle2, Circle, Settings, ExternalLink, Info, Loader2, MessageSquare, Phone, ChevronDown, ChevronUp, Handshake, LayoutGrid, List } from 'lucide-react';
+import { Plus, Trash2, CheckCircle2, Circle, Info, Loader2, MessageSquare, Phone, ChevronDown, ChevronUp, LayoutGrid, List, TrendingUp, Scale, BarChart3 } from 'lucide-react';
 import { WhatsappTemplateModal } from '../components/WhatsappTemplateModal';
 import { ARGENTINE_REGIONS, PROVINCES } from '../data/regions';
 import { api } from '../lib/api';
@@ -11,6 +11,15 @@ import { useUI } from '../contexts/UIContext';
 import { format } from 'date-fns';
 import { WhatsappQRSetup } from '../components/WhatsappQRSetup';
 import { OpportunityReviewModal } from '../components/OpportunityReviewModal';
+
+const CROP_COLORS: Record<string, { bg: string; text: string; border: string; emoji: string }> = {
+  soja:    { bg: 'bg-amber-500/10',   text: 'text-amber-400',   border: 'border-amber-500/30',  emoji: '🌱' },
+  maiz:    { bg: 'bg-yellow-500/10',  text: 'text-yellow-400',  border: 'border-yellow-500/30', emoji: '🌽' },
+  trigo:   { bg: 'bg-orange-500/10',  text: 'text-orange-400',  border: 'border-orange-500/30', emoji: '🌾' },
+  sorgo:   { bg: 'bg-red-500/10',     text: 'text-red-400',     border: 'border-red-500/30',    emoji: '🌿' },
+  girasol: { bg: 'bg-lime-500/10',    text: 'text-lime-400',    border: 'border-lime-500/30',   emoji: '🌻' },
+};
+const getCropStyle = (crop: string) => CROP_COLORS[crop?.toLowerCase()] ?? { bg: 'bg-zinc-700/30', text: 'text-zinc-300', border: 'border-zinc-600', emoji: '🌾' };
 
 const defaultExpiryDate = () => {
   const date = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
@@ -44,7 +53,6 @@ export function Oportunidades() {
     }
   };
 
-  // WhatsApp Template Modal State
   const [waModalOpen, setWaModalOpen] = useState(false);
   const [waModalPhone, setWaModalPhone] = useState('');
   const [waModalClientId, setWaModalClientId] = useState('');
@@ -90,14 +98,12 @@ export function Oportunidades() {
   const [oppLocalidad, setOppLocalidad] = useState('');
   const [oppCustomLocalidad, setOppCustomLocalidad] = useState('');
 
-  // Synchronize dynamic location selects when formData.location changes (manually, via AI, or alert load)
   React.useEffect(() => {
     const locStr = formData.location || '';
     
     let parsedProv = '';
     let parsedLoc = '';
     
-    // Split by comma
     const splitComma = locStr.split(',');
     if (splitComma.length >= 2) {
       const potentialLoc = splitComma[0].trim();
@@ -112,7 +118,6 @@ export function Oportunidades() {
       }
     }
     
-    // Substring fallback
     if (!parsedProv && locStr) {
       const cleanLoc = locStr.toLowerCase().trim();
       for (const [prov, localities] of Object.entries(ARGENTINE_REGIONS)) {
@@ -171,7 +176,6 @@ export function Oportunidades() {
     e.preventDefault();
     if (!user) return;
     
-    // Simulate lookup of client name to cache it slightly
     const client = clients.find(c => c.id === formData.clientId);
     if (!client) {
       addToast("Seleccione un cliente válido", "error");
@@ -245,7 +249,6 @@ export function Oportunidades() {
     }
   };
 
-  // Load matches from the backend matching engine
   const [matches, setMatches] = useState<any[]>([]);
   const [loadingMatches, setLoadingMatches] = useState(false);
 
@@ -345,7 +348,6 @@ export function Oportunidades() {
       message: `¿Deseas liquidar este cruce?\nSe venderán ${formatNumber(draft.quantity)} TN de ${match.cropType.toUpperCase()} de ${seller.name} (${draft.sellerPrice} USD) a ${buyer.name} (${draft.buyerPrice} USD).\n\nComisión estimada: USD ${formatNumber(Math.round(draft.quantity * ((draft.sellerPrice + draft.buyerPrice) / 2) * (draft.commissionPct / 100)))} (${draft.commissionPct}%)${match.negotiation?.status !== 'confirmada' ? '\n\nAviso: todavía no figuran ambas confirmaciones por WhatsApp.' : ''}`,
       onConfirm: async () => {
         try {
-          // 1. Guardar Deal
           await api.deals.create({
             cropType: match.cropType,
             sellerId: match.offer.clientId,
@@ -359,7 +361,6 @@ export function Oportunidades() {
             location: match.demand.location || match.offer.location || 'A convenir',
           });
 
-          // 2. Liquidar cantidades parciales
           const offerDiff = match.offer.quantity_tn - draft.quantity;
           const demandDiff = match.demand.quantity_tn - draft.quantity;
 
@@ -414,7 +415,6 @@ export function Oportunidades() {
       let aVal = a[sortConfig.key as keyof typeof a];
       let bVal = b[sortConfig.key as keyof typeof b];
 
-      // Handle nested values or special cases
       if (sortConfig.key === 'client') {
         aVal = clients.find(c => c.id === a.clientId)?.name || '';
         bVal = clients.find(c => c.id === b.clientId)?.name || '';
@@ -429,35 +429,67 @@ export function Oportunidades() {
     return new Intl.NumberFormat('es-AR').format(num);
   };
 
+  const totalOfertas = opportunities.filter(o => o.type === 'oferta' && ['abierta','negociacion','esperando_confirmacion'].includes(o.status));
+  const totalDemandas = opportunities.filter(o => o.type === 'demanda' && ['abierta','negociacion','esperando_confirmacion'].includes(o.status));
+  const totalVolumenOfertas = totalOfertas.reduce((s, o) => s + Number(o.quantity_tn), 0);
+  const totalValorOfertas = totalOfertas.reduce((s, o) => s + Number(o.quantity_tn) * Number(o.price_usd), 0);
+  const totalVolumenDemandas = totalDemandas.reduce((s, o) => s + Number(o.quantity_tn), 0);
+
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Gestión de Oportunidades</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-black text-white tracking-tight">Pipeline de Operaciones</h1>
+          <p className="text-xs text-zinc-500 mt-0.5 font-mono">Motor de oferta, demanda y cruces algorítmicos</p>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          <div className="flex items-center gap-2 bg-green-500/8 border border-green-500/20 rounded-xl px-3 py-2">
+            <TrendingUp className="w-3.5 h-3.5 text-green-400 shrink-0" />
+            <div>
+              <p className="text-[9px] text-green-500/70 font-bold uppercase tracking-wider">Oferta Activa</p>
+              <p className="text-sm font-black text-green-400 font-mono">{formatNumber(totalVolumenOfertas)} <span className="text-[10px] font-normal">TN</span></p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 bg-blue-500/8 border border-blue-500/20 rounded-xl px-3 py-2">
+            <Scale className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+            <div>
+              <p className="text-[9px] text-blue-500/70 font-bold uppercase tracking-wider">Demanda Activa</p>
+              <p className="text-sm font-black text-blue-400 font-mono">{formatNumber(totalVolumenDemandas)} <span className="text-[10px] font-normal">TN</span></p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 bg-amber-500/8 border border-amber-500/20 rounded-xl px-3 py-2">
+            <BarChart3 className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+            <div>
+              <p className="text-[9px] text-amber-500/70 font-bold uppercase tracking-wider">Valor Negociado</p>
+              <p className="text-sm font-black text-amber-400 font-mono">${formatNumber(Math.round(totalValorOfertas / 1000))}K</p>
+            </div>
+          </div>
+        </div>
+      </div>
 
-      <div className="bg-[#1b1b1b] border border-[#2d2d2d] rounded-xl p-1.5 flex gap-1.5 mb-6 overflow-x-auto scrollbar-none shadow-md">
-        <button 
-          onClick={() => setActiveTab('ofertas')}
-          className={`flex-1 min-w-[125px] py-2.5 rounded-lg text-xs sm:text-sm font-bold uppercase tracking-wider transition-all duration-150 whitespace-nowrap flex items-center justify-center gap-2 cursor-pointer ${activeTab === 'ofertas' ? 'bg-[#212f27] text-green-400 border border-green-500/20 shadow-sm shadow-green-500/5' : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'}`}
-        >
-          🌾 Ofertas (Venta)
-        </button>
-        <button 
-          onClick={() => setActiveTab('demandas')}
-          className={`flex-1 min-w-[125px] py-2.5 rounded-lg text-xs sm:text-sm font-bold uppercase tracking-wider transition-all duration-150 whitespace-nowrap flex items-center justify-center gap-2 cursor-pointer ${activeTab === 'demandas' ? 'bg-[#182635] text-blue-400 border border-blue-500/20 shadow-sm shadow-blue-500/5' : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'}`}
-        >
-          🛍️ Demandas (Compra)
-        </button>
-        <button 
-          onClick={() => setActiveTab('whatsapp')}
-          className={`flex-1 min-w-[160px] py-2.5 rounded-lg text-xs sm:text-sm font-bold uppercase tracking-wider transition-all duration-150 whitespace-nowrap flex items-center justify-center gap-2 cursor-pointer ${activeTab === 'whatsapp' ? 'bg-[#291b35] text-purple-400 border border-purple-500/20 shadow-sm shadow-purple-500/5' : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'}`}
-        >
-          📱 Alertas WhatsApp
-        </button>
-        <button 
-          onClick={() => setActiveTab('matches')}
-          className={`flex-1 min-w-[160px] py-2.5 rounded-lg text-xs sm:text-sm font-bold uppercase tracking-wider transition-all duration-150 whitespace-nowrap flex items-center justify-center gap-2 cursor-pointer ${activeTab === 'matches' ? 'bg-[#2e2318] text-amber-400 border border-amber-500/20 shadow-sm shadow-amber-500/5' : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'}`}
-        >
-          🤝 Cruces ({matches.length})
-        </button>
+      <div className="bg-[#181818] border border-[#2a2a2a] rounded-2xl p-1.5 flex gap-1 overflow-x-auto scrollbar-none shadow-lg">
+        {([
+          { key: 'ofertas',   label: 'Oferta / Venta',     emoji: '🌿', count: totalOfertas.length,   activeClass: 'bg-gradient-to-br from-[#1a2d20] to-[#162219] text-green-400 border border-green-500/25 shadow-green-500/10' },
+          { key: 'demandas',  label: 'Demanda / Compra',   emoji: '🛍️', count: totalDemandas.length,  activeClass: 'bg-gradient-to-br from-[#162333] to-[#101c2a] text-blue-400 border border-blue-500/25 shadow-blue-500/10' },
+          { key: 'whatsapp',  label: 'Alertas WhatsApp',   emoji: '📱', count: alerts.length,          activeClass: 'bg-gradient-to-br from-[#23182e] to-[#1a1123] text-purple-400 border border-purple-500/25 shadow-purple-500/10' },
+          { key: 'matches',   label: 'Cruces',             emoji: '🤝', count: matches.length,         activeClass: 'bg-gradient-to-br from-[#2d2010] to-[#221809] text-amber-400 border border-amber-500/25 shadow-amber-500/10' },
+        ] as const).map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`flex-1 min-w-[120px] py-2.5 px-3 rounded-xl text-xs font-bold transition-all duration-200 whitespace-nowrap flex items-center justify-center gap-2 cursor-pointer shadow-sm ${
+              activeTab === tab.key
+                ? tab.activeClass
+                : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/60'
+            }`}
+          >
+            <span>{tab.emoji}</span>
+            <span className="hidden sm:inline">{tab.label}</span>
+            <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full min-w-[20px] text-center ${
+              activeTab === tab.key ? 'bg-white/10' : 'bg-zinc-800'
+            }`}>{tab.count}</span>
+          </button>
+        ))}
       </div>
 
       {activeTab === 'whatsapp' ? (
@@ -614,40 +646,39 @@ export function Oportunidades() {
         </div>
       ) : (
         <>
-          {/* Formulario de Carga: Colapsable en Móviles para Maximizar Espacio */}
-          <div className="bg-[#1e1e1e] border border-[#333] rounded-xl overflow-hidden shadow-xl mb-6">
-            {/* Header del Formulario */}
-            <div 
+          <div className="border border-[#2c2c2c] rounded-2xl overflow-hidden shadow-2xl mb-6 bg-[#1a1a1a]">
+            <div
               onClick={() => setIsMobileFormExpanded(!isMobileFormExpanded)}
-              className="p-4 sm:p-5 bg-gradient-to-r from-[#212121] to-[#282828] flex items-center justify-between cursor-pointer md:cursor-default"
+              className={`p-4 sm:p-5 flex items-center justify-between cursor-pointer md:cursor-default transition-colors ${
+                activeTab === 'ofertas'
+                  ? 'bg-gradient-to-r from-[#1a2d1e] via-[#1c2920] to-[#1e2222]'
+                  : 'bg-gradient-to-r from-[#18243a] via-[#1a2233] to-[#1c1f2e]'
+              }`}
             >
-              <div className="flex flex-col gap-0.5 sm:gap-1">
-                <h3 className="text-sm sm:text-base font-bold flex items-center gap-2 text-white">
-                  <span>{activeTab === 'ofertas' ? '🛒' : '🛍️'}</span>
-                  {activeTab === 'ofertas' ? 'Registrar Nueva Oferta de Venta' : 'Registrar Nueva Demanda de Compra'}
-                </h3>
-                <p className="text-[10px] sm:text-xs text-gray-400 font-mono">
-                  {isMobileFormExpanded ? 'Toca para contraer' : 'Toca para expandir el formulario rápido'}
-                </p>
+              <div className="flex items-center gap-3">
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-lg shadow-inner ${
+                  activeTab === 'ofertas' ? 'bg-green-500/15 border border-green-500/20' : 'bg-blue-500/15 border border-blue-500/20'
+                }`}>
+                  {activeTab === 'ofertas' ? '🛒' : '🛍️'}
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white">
+                    {activeTab === 'ofertas' ? 'Nueva Oferta de Venta' : 'Nueva Demanda de Compra'}
+                  </h3>
+                  <p className="text-[10px] text-zinc-500 font-mono mt-0.5">
+                    {isMobileFormExpanded ? 'Toca para contraer' : 'Completar para ingresar al pipeline'}
+                  </p>
+                </div>
               </div>
-
-              {/* Botón de control de expansión móvil */}
-              <div className="flex items-center gap-2">
-                <button 
-                  type="button"
-                  className="md:hidden p-1.5 bg-[#333] hover:bg-[#444] rounded-lg text-gray-300 hover:text-white transition-colors"
-                  title={isMobileFormExpanded ? "Ocultar" : "Mostrar"}
-                >
-                  {isMobileFormExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                </button>
-              </div>
+              <button
+                type="button"
+                className="md:hidden p-2 bg-zinc-800/70 hover:bg-zinc-700 rounded-lg text-zinc-400 hover:text-white transition-colors border border-zinc-700"
+              >
+                {isMobileFormExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
             </div>
 
-            {/* Contenido (Visible siempre en pantallas medianas+, colapsado en mobile por defecto) */}
             <div className={`${isMobileFormExpanded ? 'block' : 'hidden md:block'} p-4 sm:p-6 border-t border-[#333] bg-[#1d1d1d]`}>
-
-
-              {/* Formulario HTML clasico robusto */}
               <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 items-end">
                 <div className="col-span-1 sm:col-span-2 md:col-span-1">
                   <label className="block text-xs font-medium text-gray-400 mb-1.5">Cliente</label>
@@ -774,26 +805,32 @@ export function Oportunidades() {
             </div>
           </div>
 
-      <div className="bg-[#1e1e1e] border border-[#333] rounded-xl shadow-xl overflow-hidden flex flex-col">
-        <div className="p-4 border-b border-[#333] flex flex-col sm:flex-row sm:items-center sm:justify-between bg-[#252525] gap-3">
-          <div className="flex overflow-x-auto whitespace-nowrap scrollbar-none gap-2 pb-1 sm:pb-0">
-            {['all', 'soja', 'maiz', 'trigo', 'sorgo', 'girasol'].map(c => (
-              <button 
-                key={c}
-                onClick={() => setFilterCrop(c)}
-                className={`px-3 py-1.5 rounded-full text-xs font-bold capitalize transition-colors tracking-wide shrink-0 ${filterCrop === c ? 'bg-white text-black' : 'bg-[#333] text-gray-400 hover:text-white'}`}
-              >
-                {c === 'all' ? 'Todos' : c}
-              </button>
-            ))}
+      <div className="bg-[#191919] border border-[#2a2a2a] rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+        <div className="px-4 py-3 border-b border-[#252525] flex flex-col sm:flex-row sm:items-center sm:justify-between bg-[#1e1e1e] gap-3">
+          <div className="flex overflow-x-auto whitespace-nowrap scrollbar-none gap-1.5 pb-1 sm:pb-0">
+            {['all', 'soja', 'maiz', 'trigo', 'sorgo', 'girasol'].map(c => {
+              const cs = getCropStyle(c);
+              return (
+                <button
+                  key={c}
+                  onClick={() => setFilterCrop(c)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize transition-all tracking-wide shrink-0 border ${
+                    filterCrop === c
+                      ? c === 'all' ? 'bg-white text-black border-transparent' : `${cs.bg} ${cs.text} ${cs.border}`
+                      : 'bg-transparent text-zinc-500 border-zinc-800 hover:text-zinc-200 hover:border-zinc-700'
+                  }`}
+                >
+                  {c === 'all' ? '✦ Todos' : `${cs.emoji} ${c}`}
+                </button>
+              );
+            })}
           </div>
-          <div className="flex items-center gap-4 shrink-0 justify-between sm:justify-end w-full sm:w-auto">
-            {/* View Mode Toggle */}
-            <div className="flex bg-[#333] rounded-lg p-0.5 border border-[#444] shadow-inner shrink-0">
+          <div className="flex items-center gap-3 shrink-0 justify-between sm:justify-end w-full sm:w-auto">
+            <div className="flex bg-zinc-900 rounded-xl p-0.5 border border-zinc-800 shadow-inner shrink-0">
               <button
                 type="button"
                 onClick={() => setViewMode('list')}
-                className={`px-2.5 py-1.5 rounded-md transition-all duration-200 flex items-center gap-1.5 text-xs font-bold ${viewMode === 'list' ? 'bg-green-600 text-white shadow-md' : 'text-gray-400 hover:text-white'}`}
+                className={`px-3 py-1.5 rounded-lg transition-all duration-200 flex items-center gap-1.5 text-xs font-bold ${viewMode === 'list' ? 'bg-zinc-700 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-200'}`}
                 title="Vista Lista"
               >
                 <List className="w-3.5 h-3.5" />
@@ -802,15 +839,15 @@ export function Oportunidades() {
               <button
                 type="button"
                 onClick={() => setViewMode('kanban')}
-                className={`px-2.5 py-1.5 rounded-md transition-all duration-200 flex items-center gap-1.5 text-xs font-bold ${viewMode === 'kanban' ? 'bg-green-600 text-white shadow-md' : 'text-gray-400 hover:text-white'}`}
+                className={`px-3 py-1.5 rounded-lg transition-all duration-200 flex items-center gap-1.5 text-xs font-bold ${viewMode === 'kanban' ? 'bg-zinc-700 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-200'}`}
                 title="Vista Kanban"
               >
                 <LayoutGrid className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Kanban</span>
               </button>
             </div>
-            <span className="text-xs sm:text-sm font-medium text-gray-500 shrink-0 font-mono">
-              {filteredOpps.length} {filteredOpps.length === 1 ? 'resultado' : 'resultados'}
+            <span className="text-xs font-bold text-zinc-600 shrink-0 font-mono bg-zinc-900 border border-zinc-800 px-2.5 py-1 rounded-lg">
+              {filteredOpps.length} resultado{filteredOpps.length !== 1 && 's'}
             </span>
           </div>
         </div>
@@ -828,165 +865,134 @@ export function Oportunidades() {
             handleOpenWaModal={handleOpenWaModal}
           />
         ) : (
-          <>
-            {/* Vista Mobile: Lista de tarjetas interactivas ultra-pulida */}
-            <div className="md:hidden divide-y divide-[#2e2e2e] overflow-hidden">
-              {oppLoading ? (
-                <div className="p-12 text-center">
-                  <Loader2 className="w-8 h-8 animate-spin text-green-500 mx-auto mb-4" />
-                  <p className="text-gray-500 font-medium text-xs">Cargando oportunidades...</p>
-                </div>
-              ) : filteredOpps.length === 0 ? (
-                <div className="p-12 text-center">
-                  <div className="bg-[#252525] w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <Info className="w-6 h-6 text-gray-500" />
-                  </div>
-                  <p className="text-sm font-bold mb-1">No hay {activeTab}</p>
-                  <p className="text-gray-500 text-xs">Modifica los filtros de grano o crea una {activeTab === 'ofertas' ? 'oferta' : 'demanda'} nueva.</p>
-                </div>
-              ) : (
-                filteredOpps.map(opp => {
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full text-left border-collapse min-w-[800px]">
+              <thead>
+                <tr className="border-b border-[#252525]">
+                  {[
+                    { label: 'Estado', key: 'status' },
+                    { label: 'Fecha', key: 'createdAt' },
+                    { label: 'Cliente', key: 'client' },
+                    { label: 'Grano', key: 'cropType' },
+                    { label: 'Volumen', key: 'quantity_tn' },
+                    { label: 'Precio USD/tn', key: 'price_usd' },
+                    { label: 'Destino', key: 'location' },
+                  ].map(col => (
+                    <th
+                      key={col.key}
+                      className="px-4 py-3 text-[10px] font-black text-zinc-600 uppercase tracking-widest cursor-pointer hover:text-zinc-300 transition-colors select-none"
+                      onClick={() => handleSort(col.key)}
+                    >
+                      <span className="flex items-center gap-1">
+                        {col.label}
+                        {sortConfig.key === col.key && (
+                          <span className="text-green-500">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+                        )}
+                      </span>
+                    </th>
+                  ))}
+                  <th className="px-4 py-3 text-[10px] font-black text-zinc-600 uppercase tracking-widest text-right">Acc.</th>
+                </tr>
+              </thead>
+              <tbody>
+                {oppLoading ? (
+                  <tr>
+                    <td colSpan={8} className="p-12 text-center">
+                      <Loader2 className="w-8 h-8 animate-spin text-green-500 mx-auto mb-4" />
+                      <p className="text-zinc-500 font-medium text-sm">Cargando oportunidades...</p>
+                    </td>
+                  </tr>
+                ) : filteredOpps.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="py-16 text-center">
+                      <div className="w-16 h-16 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center mx-auto mb-4">
+                        <Info className="w-7 h-7 text-zinc-600" />
+                      </div>
+                      <p className="font-bold text-zinc-400 mb-1">Sin resultados para este filtro</p>
+                      <p className="text-zinc-600 text-sm">Ajustá los filtros o creá un nuevo registro.</p>
+                    </td>
+                  </tr>
+                ) : filteredOpps.map((opp, idx) => {
                   const client = clients.find(c => c.id === opp.clientId);
                   const clientName = client?.name || 'Desconocido';
                   const clientPhone = client?.phone;
+                  const cs = getCropStyle(opp.cropType);
+                  const isOferta = opp.type === 'oferta';
+                  const totalValor = Number(opp.quantity_tn) * Number(opp.price_usd);
                   return (
-                    <div 
-                      key={opp.id} 
-                      className={`p-4 bg-[#1e1e1e] hover:bg-[#252525]/35 transition-all flex flex-col gap-3.5 border-l-4 ${opp.type === 'oferta' ? 'border-green-600' : 'border-blue-600'}`}
+                    <tr
+                      key={opp.id}
+                      className={`group border-b border-[#202020] transition-colors hover:bg-white/[0.02] ${idx % 2 === 0 ? '' : 'bg-white/[0.01]'}`}
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] text-gray-400 font-mono flex items-center gap-1">
-                          <span>📅</span>
-                          {opp.createdAt ? format(new Date(opp.createdAt), 'dd/MM/yyyy') : '-'}
-                        </span>
-                        <button 
-                          onClick={() => toggleStatus(opp)} 
-                          className={`flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider transition-all cursor-pointer ${opp.status === 'abierta' ? 'bg-amber-500/10 text-amber-500 hover:bg-amber-500/20' : 'bg-green-500/10 text-green-500 hover:bg-green-500/20'}`}
+                      <td className="px-4 py-3">
+                        <button
+                          onClick={() => toggleStatus(opp)}
+                          className={`flex items-center gap-1.5 text-[10px] font-black px-2.5 py-1.5 rounded-lg border uppercase tracking-wider transition-all cursor-pointer ${
+                            opp.status === 'abierta'    ? 'bg-amber-500/8 text-amber-400 border-amber-500/20 hover:bg-amber-500/15' :
+                            opp.status === 'negociacion' ? 'bg-blue-500/8 text-blue-400 border-blue-500/20 hover:bg-blue-500/15' :
+                            opp.status === 'ganada'     ? 'bg-green-500/8 text-green-400 border-green-500/20' :
+                            opp.status === 'perdida'    ? 'bg-red-500/8 text-red-400 border-red-500/20' :
+                            'bg-zinc-800 text-zinc-400 border-zinc-700'
+                          }`}
                         >
-                          {opp.status === 'abierta' ? <Circle className="w-3 h-3 text-amber-500" /> : <CheckCircle2 className="w-3 h-3 text-green-400" />}
-                          <span>{opp.status}</span>
+                          {opp.status === 'ganada' ? <CheckCircle2 className="w-3 h-3" /> : <Circle className="w-3 h-3" />}
+                          {opp.status}
                         </button>
-                      </div>
-
-                      <div>
-                        <h4 className="text-sm font-bold text-white flex items-center gap-1.5 truncate">
-                          {clientName}
-                        </h4>
-                        <div className="flex items-center gap-1 text-[11px] text-gray-400 mt-1">
-                          <span className="text-gray-500 font-medium">📍 Destino:</span>
-                          <span className="truncate">{opp.location || 'A convenir'}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-xs text-zinc-500 font-mono">
+                          {opp.createdAt ? format(new Date(opp.createdAt), 'dd/MM/yy') : '-'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div>
+                          <p className="text-sm font-bold text-zinc-200 truncate max-w-[180px]">{clientName}</p>
+                          {opp.location && <p className="text-[10px] text-zinc-600 truncate max-w-[180px] mt-0.5">📍 {opp.location}</p>}
                         </div>
-                      </div>
-
-                      <div className="flex items-center justify-between pt-3 border-t border-[#2d2d2d] mt-1 gap-2 flex-wrap">
-                        <div className="flex gap-1.5 shrink-0">
-                          <span className="bg-[#272727] border border-[#3b3b3b] px-2 py-1 rounded text-[11px] font-semibold text-gray-200 capitalize">
-                            🌱 {opp.cropType}
-                          </span>
-                          <span className="bg-[#272727] border border-[#3b3b3b] px-2 py-1 rounded text-[11px] font-mono text-gray-200 font-medium">
-                            {formatNumber(opp.quantity_tn)} TN
-                          </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-lg border ${cs.bg} ${cs.text} ${cs.border}`}>
+                          {cs.emoji} {opp.cropType}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-sm font-bold font-mono text-zinc-200">{formatNumber(opp.quantity_tn)}</span>
+                        <span className="text-[10px] text-zinc-600 ml-1">TN</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div>
+                          <p className={`text-sm font-black font-mono ${isOferta ? 'text-green-400' : 'text-blue-400'}`}>
+                            {opp.priceMode === 'a_negociar' ? <span className="text-zinc-500 text-xs">A negociar</span> : `$${formatNumber(opp.price_usd)}`}
+                          </p>
+                          {opp.priceMode !== 'a_negociar' && <p className="text-[10px] text-zinc-600 font-mono">≈ ${formatNumber(Math.round(totalValor / 1000))}K total</p>}
                         </div>
-
-                        <div className="flex items-center gap-2">
-                          <span className={`text-base font-black font-mono tracking-tight ${opp.type === 'oferta' ? 'text-green-400' : 'text-blue-400'}`}>
-                            ${formatNumber(opp.price_usd)}
-                          </span>
-                          
-                          {/* WhatsApp trigger button if a phone exists */}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-zinc-500 truncate max-w-[140px]">{opp.location || <span className="text-zinc-700 italic">A convenir</span>}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
                           {clientPhone && (
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleOpenWaModal(clientPhone, opp.clientId, clientName, {
-                                  cropType: opp.cropType,
-                                  quantity_tn: opp.quantity_tn,
-                                  price_usd: opp.price_usd,
-                                  location: opp.location
-                                });
-                              }}
-                              className="p-1.5 bg-green-600/15 hover:bg-green-600/30 text-green-400 hover:text-green-300 rounded-lg transition-colors border border-green-500/20 flex items-center justify-center active:scale-95 cursor-pointer"
-                              title="Contactar por WhatsApp (Plantilla)"
+                            <button
+                              onClick={() => handleOpenWaModal(clientPhone, opp.clientId, clientName, { cropType: opp.cropType, quantity_tn: opp.quantity_tn, price_usd: opp.price_usd, location: opp.location })}
+                              className="p-1.5 text-green-400 hover:bg-green-500/10 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-green-500/20"
+                              title="WhatsApp"
                             >
-                              <MessageSquare className="w-4 h-4" />
+                              <MessageSquare className="w-3.5 h-3.5" />
                             </button>
                           )}
-
-                          <button 
-                            onClick={() => deleteOpp(opp.id)} 
-                            className="text-gray-400 hover:text-red-500 p-1.5 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer"
-                            title="Eliminar oportunidad"
+                          <button
+                            onClick={() => deleteOpp(opp.id)}
+                            className="p-1.5 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-red-500/20"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-
-            {/* Vista Escritorio: Tabla clásica robusta */}
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-left border-collapse min-w-[800px]">
-                <thead>
-                  <tr className="bg-[#252525] border-b border-[#333]">
-                    <th className="p-4 text-gray-400 font-semibold text-sm cursor-pointer hover:text-white" onClick={() => handleSort('status')}>Estado {sortConfig.key === 'status' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</th>
-                    <th className="p-4 text-gray-400 font-semibold text-sm cursor-pointer hover:text-white" onClick={() => handleSort('createdAt')}>Fecha {sortConfig.key === 'createdAt' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</th>
-                    <th className="p-4 text-gray-400 font-semibold text-sm cursor-pointer hover:text-white" onClick={() => handleSort('client')}>Cliente {sortConfig.key === 'client' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</th>
-                    <th className="p-4 text-gray-400 font-semibold text-sm cursor-pointer hover:text-white" onClick={() => handleSort('cropType')}>Grano {sortConfig.key === 'cropType' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</th>
-                    <th className="p-4 text-gray-400 font-semibold text-sm cursor-pointer hover:text-white" onClick={() => handleSort('quantity_tn')}>Volumen (tn) {sortConfig.key === 'quantity_tn' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</th>
-                    <th className="p-4 text-gray-400 font-semibold text-sm cursor-pointer hover:text-white" onClick={() => handleSort('price_usd')}>Precio (USD) {sortConfig.key === 'price_usd' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</th>
-                    <th className="p-4 text-gray-400 font-semibold text-sm cursor-pointer hover:text-white" onClick={() => handleSort('location')}>Destino {sortConfig.key === 'location' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</th>
-                    <th className="p-4 text-gray-400 font-semibold text-sm text-right">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#333]">
-                  {oppLoading ? (
-                     <tr>
-                       <td colSpan={8} className="p-12 text-center">
-                         <Loader2 className="w-8 h-8 animate-spin text-green-500 mx-auto mb-4" />
-                         <p className="text-gray-500 font-medium">Cargando...</p>
-                       </td>
-                     </tr>
-                  ) : filteredOpps.length === 0 ? (
-                     <tr>
-                       <td colSpan={8} className="p-12 text-center">
-                         <div className="bg-[#252525] w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
-                           <Info className="w-10 h-10 text-gray-500" />
-                         </div>
-                         <p className="text-lg font-bold mb-1">No hay {activeTab}</p>
-                         <p className="text-gray-500 text-sm">Prueba ajustando los filtros o creando un registro nuevo.</p>
-                       </td>
-                     </tr>
-                  ) : filteredOpps.map(opp => (
-                    <tr key={opp.id} className="hover:bg-white/5 transition-colors group">
-                      <td className="p-4">
-                         <button onClick={() => toggleStatus(opp)} className={`flex items-center gap-2 text-sm font-medium px-3 py-1 rounded-full w-fit transition-all ${opp.status === 'abierta' ? 'bg-amber-500/10 text-amber-500 hover:bg-amber-500/20' : 'bg-green-500/10 text-green-500 hover:bg-green-500/20'}`}>
-                            {opp.status === 'abierta' ? <Circle className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
-                            {opp.status}
-                         </button>
-                      </td>
-                      <td className="p-4 text-gray-300">{opp.createdAt ? format(new Date(opp.createdAt), 'dd/MM/yyyy') : '-'}</td>
-                      <td className="p-4 font-medium">{clients.find(c => c.id === opp.clientId)?.name || 'Desconocido'}</td>
-                      <td className="p-4 capitalize">
-                        <span className="bg-[#333] px-2 py-1 rounded-md text-sm">{opp.cropType}</span>
-                      </td>
-                      <td className="p-4 text-gray-300 font-mono">{formatNumber(opp.quantity_tn)}</td>
-                      <td className={`p-4 font-bold font-mono ${activeTab === 'ofertas' ? 'text-green-400' : 'text-blue-400'}`}>${formatNumber(opp.price_usd)}</td>
-                      <td className="p-4 text-gray-300">{opp.location || '-'}</td>
-                      <td className="p-4 text-right">
-                        <button onClick={() => deleteOpp(opp.id)} className="text-gray-500 hover:text-red-500 p-2 rounded-lg hover:bg-red-500/10 transition-colors md:opacity-0 group-hover:opacity-100 focus:opacity-100">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
       </>
@@ -1051,7 +1057,6 @@ export function Oportunidades() {
         </div>
       )}
 
-      {/* Premium Dark Theme React-based Confirmation Modal */}
       {confirmDialog.isOpen && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
           <div className="bg-[#1e1e1e] border border-zinc-800 rounded-2xl max-w-md w-full overflow-hidden shadow-2xl p-6 text-left space-y-4 animate-scale-up">
@@ -1085,7 +1090,6 @@ export function Oportunidades() {
         </div>
       )}
 
-      {/* WhatsApp Template Modal */}
       <WhatsappTemplateModal
         isOpen={waModalOpen}
         onClose={() => setWaModalOpen(false)}
@@ -1169,7 +1173,6 @@ function WhatsappAlertsView({ clients, opportunities = [], onConvert, setConfirm
 
       const senderPhone = '+549' + Math.floor(1100000000 + Math.random() * 8000000000).toString();
 
-      // 1. Guardar el registro de webhook, ya marcado como "procesada"
       await api.whatsappAlerts.create({
         rawMessage: `[Nota de Voz] ${parsed.transcription || 'Mensaje de voz'}`,
         sourceGroup: type === 'oferta' ? 'Audios Ventas Cba' : 'Audios Demandas Puerto',
@@ -1181,7 +1184,6 @@ function WhatsappAlertsView({ clients, opportunities = [], onConvert, setConfirm
         status: 'procesada',
       });
 
-      // 2. CREACIÓN AUTOMÁTICA DE LA OPORTUNIDAD EN PIPELINE
       const matchedClient = clients.find(c => 
         c.phone && 
         (c.phone.replace(/\D/g, '').includes(senderPhone.replace(/\D/g, '')) ||
@@ -1199,7 +1201,6 @@ function WhatsappAlertsView({ clients, opportunities = [], onConvert, setConfirm
 
       addToast(`🎙️ Nota de voz procesada y cargada: "${parsed.transcription}". Registrado como ${type} de ${crop} (${quantity} tn) en Pipeline.`, 'success');
       
-      // Dispatch custom event to tell React to refetch alerts list
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new Event('alerts-updated'));
       }
@@ -1271,7 +1272,6 @@ function WhatsappAlertsView({ clients, opportunities = [], onConvert, setConfirm
 
       const senderPhone = '+549' + Math.floor(1100000000 + Math.random() * 8000000000).toString();
 
-      // 1. Guardar el registro de webhook, ya marcado como "procesada"
       await api.whatsappAlerts.create({
         rawMessage: simMessage,
         sourceGroup: type === 'oferta' ? 'Ventas Granos Cba' : 'Demandas Exportadores',
@@ -1283,7 +1283,6 @@ function WhatsappAlertsView({ clients, opportunities = [], onConvert, setConfirm
         status: 'procesada',
       });
 
-      // 2. CREACIÓN AUTOMÁTICA DE LA OPORTUNIDAD EN PIPELINE
       const matchedClient = clients.find(c => 
         c.phone && 
         (c.phone.replace(/\D/g, '').includes(senderPhone.replace(/\D/g, '')) ||
@@ -1292,7 +1291,7 @@ function WhatsappAlertsView({ clients, opportunities = [], onConvert, setConfirm
 
       await api.opportunities.create({
         type: type,
-        clientId: matchedClient?.id || clients[0]?.id || '', // Auto-asigna el primer cliente por defecto si no match (solo como simulacion)
+        clientId: matchedClient?.id || clients[0]?.id || '',
         cropType: crop,
         quantity_tn: quantity,
         price_usd: price,
@@ -1352,7 +1351,6 @@ function WhatsappAlertsView({ clients, opportunities = [], onConvert, setConfirm
         <span 
           onDoubleClick={() => setShowConfig(!showConfig)}
           className="text-zinc-700 text-[9px] font-mono select-none cursor-default hover:text-zinc-650 transition-colors"
-          title="Doble clic para opciones avanzadas"
         >
           ● MÓDULO ACTIVO
         </span>
@@ -1384,7 +1382,6 @@ function WhatsappAlertsView({ clients, opportunities = [], onConvert, setConfirm
             </button>
           </form>
 
-          {/* Audio Simulator Section */}
           <div className="pt-3 border-t border-purple-900/30 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
             <div className="space-y-1">
               <h5 className="text-xs font-bold text-purple-300 uppercase tracking-widest flex items-center gap-1.5">
@@ -1439,7 +1436,6 @@ function WhatsappAlertsView({ clients, opportunities = [], onConvert, setConfirm
               ? clients.find(c => c.id === alert.clientId) 
               : clients.find(c => c.phone && alert.senderPhone && (c.phone.replace(/\D/g, '').includes(alert.senderPhone.replace(/\D/g, '')) || alert.senderPhone.replace(/\D/g, '').includes(c.phone.replace(/\D/g, ''))));
 
-            // Find matching opportunities in the CRM of the opposite type
             const possibleMatches = opportunities.filter(opp => {
               if (!['abierta', 'negociacion', 'esperando_confirmacion'].includes(opp.status)) return false;
               if (opp.clientId && matchedClient && opp.clientId === matchedClient.id) return false;
@@ -1468,7 +1464,6 @@ function WhatsappAlertsView({ clients, opportunities = [], onConvert, setConfirm
                     <span className="text-[11px] text-gray-400 font-mono font-medium">{alert.senderPhone}</span>
                     <span className="text-[11px] text-gray-500">• {alert.createdAt ? format(alert.createdAt, 'HH:mm dd/MM') : ''}</span>
                     
-                    {/* Client / Prospect Badge */}
                     {matchedClient ? (
                       <>
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-950/30 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
@@ -1484,7 +1479,6 @@ function WhatsappAlertsView({ clients, opportunities = [], onConvert, setConfirm
                       </span>
                     )}
 
-                    {/* Possible Matches Badge */}
                     {possibleMatches.length > 0 && alert.status === 'nueva' && (
                       <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-500/25 text-amber-400 border border-amber-500/35 flex items-center gap-1 animate-pulse shadow-sm shadow-amber-500/10">
                         ⚡ Cruce Compatible Detectado
@@ -1492,7 +1486,6 @@ function WhatsappAlertsView({ clients, opportunities = [], onConvert, setConfirm
                     )}
                   </div>
 
-                {/* WhatsApp Chat Bubble Emulator Box */}
                 <div className="relative max-w-2xl bg-[#0b141a] border border-[#232d36] rounded-2xl px-4 py-3 text-xs sm:text-sm text-zinc-100 font-sans leading-relaxed mb-4 shadow-sm break-words flex flex-col gap-1">
                   <div className="flex items-center justify-between gap-4 border-b border-[#232d36]/50 pb-1.5 mb-0.5">
                     <span className="text-[10px] text-emerald-500 font-bold tracking-wide uppercase flex items-center gap-1.5 select-none">
@@ -1551,7 +1544,6 @@ function WhatsappAlertsView({ clients, opportunities = [], onConvert, setConfirm
                   </div>
                 )}
 
-                {/* Possible Crossovers Detail Cards */}
                 {possibleMatches.length > 0 && alert.status === 'nueva' && (
                   <div className="mt-4 p-3 bg-[#231b15]/90 border border-amber-500/20 rounded-xl space-y-2 shadow-inner">
                     <p className="text-[10px] text-amber-400 font-bold uppercase tracking-wider flex items-center gap-1">
@@ -1603,7 +1595,6 @@ function WhatsappAlertsView({ clients, opportunities = [], onConvert, setConfirm
                 )}
               </div>
 
-              {/* Botones de acción móviles responsive */}
               <div className="flex flex-col sm:flex-row md:flex-col gap-2 w-full md:w-auto shrink-0 border-t border-[#2d2d2d] md:border-none pt-3 md:pt-0">
                 {alert.status === 'nueva' && (
                   <>
@@ -1659,13 +1650,13 @@ function KanbanBoardView({
   handleOpenWaModal: (phone: string, id: string, name: string, context?: any) => void;
 }) {
   const columns = [
-    { id: 'abierta', name: 'Abiertas 📂', borderClass: 'border-zinc-700 bg-zinc-800/10' },
-    { id: 'negociacion', name: 'En Negociación 🤝', borderClass: 'border-amber-500/30 bg-amber-500/5' },
-    { id: 'esperando_confirmacion', name: 'Esperando Confirmación', borderClass: 'border-blue-500/30 bg-blue-500/5' },
-    { id: 'ganada', name: 'Ganadas 🏆', borderClass: 'border-green-500/30 bg-green-500/5' },
-    { id: 'perdida', name: 'Perdidas ❌', borderClass: 'border-red-500/30 bg-red-500/5' },
-    { id: 'vencida', name: 'Vencidas', borderClass: 'border-zinc-600 bg-zinc-700/5' }
-  ];
+    { id: 'abierta',                name: '📂 Abiertas',              borderClass: 'border-zinc-800 bg-zinc-800/10',       headerClass: 'text-zinc-300' },
+    { id: 'negociacion',            name: '🤝 En Negociación',        borderClass: 'border-amber-500/30 bg-amber-500/5',   headerClass: 'text-amber-300' },
+    { id: 'esperando_confirmacion', name: '⏳ Esp. Confirmación',     borderClass: 'border-sky-500/30 bg-sky-500/5',       headerClass: 'text-sky-300' },
+    { id: 'ganada',                 name: '🏆 Ganadas',               borderClass: 'border-green-500/30 bg-green-500/5',   headerClass: 'text-green-300' },
+    { id: 'perdida',                name: '❌ Perdidas',              borderClass: 'border-red-500/30 bg-red-500/5',       headerClass: 'text-red-300' },
+    { id: 'vencida',                name: '⌛ Vencidas',              borderClass: 'border-zinc-700 bg-zinc-700/5',        headerClass: 'text-zinc-500' }
+  ] as const;
 
   const getColumnItems = (statusId: string) => {
     return filteredOpps.filter(o => {
@@ -1717,17 +1708,15 @@ function KanbanBoardView({
                 await handleStatusChange(id, col.id);
               }
             }}
-            className={`w-72 sm:w-80 shrink-0 border rounded-2xl p-4 flex flex-col transition-all duration-200 ${col.borderClass} ${isOver ? 'ring-2 ring-green-500 scale-[1.01] border-green-500/50 bg-green-500/5' : ''}`}
+            className={`w-72 sm:w-76 shrink-0 border rounded-2xl p-3.5 flex flex-col transition-all duration-200 ${col.borderClass} ${isOver ? 'ring-2 ring-green-500/60 scale-[1.01] border-green-500/50 shadow-lg shadow-green-500/5' : ''}`}
           >
-            {/* Header */}
-            <div className="flex items-center justify-between mb-4 pb-2 border-b border-zinc-800">
-              <h4 className="font-bold text-sm text-zinc-150 uppercase tracking-wider">{col.name}</h4>
-              <span className="bg-zinc-850 border border-zinc-800 text-zinc-400 text-xs px-2 py-0.5 rounded-full font-mono font-bold">
+            <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-zinc-800/60">
+              <h4 className={`font-black text-xs uppercase tracking-widest ${(col as any).headerClass}`}>{col.name}</h4>
+              <span className="bg-zinc-900 border border-zinc-800 text-zinc-400 text-[10px] px-1.5 py-0.5 rounded-md font-mono font-bold">
                 {items.length}
               </span>
             </div>
 
-            {/* List */}
             <div className="flex-1 flex flex-col gap-3 overflow-y-auto max-h-[600px] pr-1.5 scrollbar-thin">
               {items.length === 0 ? (
                 <div className="h-32 flex flex-col items-center justify-center border-2 border-dashed border-zinc-800 rounded-xl text-zinc-550 text-xs gap-1.5">
@@ -1739,7 +1728,9 @@ function KanbanBoardView({
                   const client = clients.find(c => c.id === opp.clientId);
                   const clientName = client?.name || 'Desconocido';
                   const clientPhone = client?.phone;
-
+                  const cs = getCropStyle(opp.cropType);
+                  const isOferta = opp.type === 'oferta';
+                  
                   return (
                     <div
                       key={opp.id}
@@ -1748,67 +1739,72 @@ function KanbanBoardView({
                         e.dataTransfer.setData('text/plain', opp.id);
                         e.dataTransfer.effectAllowed = 'move';
                       }}
-                      className="bg-[#222] hover:bg-[#282828] border border-[#333] hover:border-[#444] rounded-xl p-4 transition-all duration-200 cursor-grab active:cursor-grabbing space-y-3 shadow-md relative group"
+                      className="bg-[#1f1f1f] hover:bg-[#252525] border border-[#2e2e2e] hover:border-[#3a3a3a] rounded-xl p-3.5 transition-all duration-150 cursor-grab active:cursor-grabbing shadow-md relative group"
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] text-zinc-500 font-mono">
-                          {opp.createdAt ? format(new Date(opp.createdAt), 'dd/MM/yyyy') : '-'}
+                      <div className="flex items-center justify-between mb-2.5">
+                        <span className="text-[9px] text-zinc-600 font-mono">
+                          {opp.createdAt ? format(new Date(opp.createdAt), 'dd/MM/yy') : '-'}
                         </span>
-                        <span className={`text-[9px] uppercase font-black px-1.5 py-0.5 rounded ${opp.type === 'oferta' ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'}`}>
-                          {opp.type === 'oferta' ? 'Venta' : 'Compra'}
-                        </span>
-                      </div>
-                      <div>
-                        <h5 className="font-bold text-xs text-white truncate max-w-[90%]">{clientName}</h5>
-                        <div className="flex items-center gap-1 text-[10px] text-zinc-400 mt-1">
-                          <span>📍</span>
-                          <span className="truncate">{opp.location || 'A convenir'}</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between pt-2.5 border-t border-zinc-800/80">
-                        <div className="flex items-center gap-1">
-                          <span className="bg-zinc-900 border border-zinc-800 text-zinc-300 text-[10px] px-1.5 py-0.5 rounded font-bold capitalize">
-                            🌱 {opp.cropType}
-                          </span>
-                          <span className="bg-zinc-900 border border-zinc-800 text-zinc-300 text-[10px] px-1.5 py-0.5 rounded font-mono font-medium">
-                            {formatNumber(opp.quantity_tn)} TN
-                          </span>
-                        </div>
-                        <span className={`font-mono font-black text-xs ${opp.type === 'oferta' ? 'text-green-400' : 'text-blue-400'}`}>
-                          {opp.priceMode === 'a_negociar' ? 'A negociar' : `$${formatNumber(opp.price_usd)}`}
+                        <span className={`text-[9px] uppercase font-black px-2 py-0.5 rounded-md border ${
+                          isOferta
+                            ? 'bg-green-500/10 text-green-400 border-green-500/20'
+                            : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                        }`}>
+                          {isOferta ? '↑ Venta' : '↓ Compra'}
                         </span>
                       </div>
+
+                      <h5 className="font-black text-xs text-white truncate mb-1.5">{clientName}</h5>
+
+                      <div className="flex items-center gap-1.5 mb-2.5">
+                        <span className={`inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-md border ${cs.bg} ${cs.text} ${cs.border}`}>
+                          {cs.emoji} {opp.cropType}
+                        </span>
+                        <span className="text-[9px] font-bold text-zinc-400 bg-zinc-900 border border-zinc-800 px-2 py-0.5 rounded-md font-mono">
+                          {formatNumber(opp.quantity_tn)} TN
+                        </span>
+                      </div>
+
+                      <div className={`w-full rounded-lg px-3 py-2 ${
+                        isOferta ? 'bg-green-500/8 border border-green-500/15' : 'bg-blue-500/8 border border-blue-500/15'
+                      }`}>
+                        <p className={`text-xs font-black font-mono ${isOferta ? 'text-green-400' : 'text-blue-400'}`}>
+                          {opp.priceMode === 'a_negociar' ? 'A negociar' : `$${formatNumber(opp.price_usd)} USD/tn`}
+                        </p>
+                        {opp.location && (
+                          <p className="text-[9px] text-zinc-600 mt-0.5 truncate">📍 {opp.location}</p>
+                        )}
+                      </div>
+
                       {(opp.nextAction || opp.expiresAt || opp.lostReason) && (
-                        <div className="space-y-1 text-[10px] text-zinc-400 border-t border-zinc-800/80 pt-2">
-                          {opp.nextAction && <p><span className="text-zinc-500">Próximo:</span> {opp.nextAction}</p>}
-                          {opp.expiresAt && <p><span className="text-zinc-500">Vence:</span> {format(new Date(opp.expiresAt), 'dd/MM/yyyy')}</p>}
-                          {opp.lostReason && <p className="text-red-300"><span className="text-zinc-500">Motivo:</span> {opp.lostReason}</p>}
+                        <div className="space-y-0.5 text-[9px] text-zinc-500 border-t border-zinc-800 mt-2.5 pt-2">
+                          {opp.nextAction && <p className="truncate"><span className="text-zinc-600">▶</span> {opp.nextAction}</p>}
+                          {opp.expiresAt && <p><span className="text-zinc-600">⏱</span> Vence {format(new Date(opp.expiresAt), 'dd/MM/yy')}</p>}
+                          {opp.lostReason && <p className="text-red-400"><span className="text-zinc-600">✕</span> {opp.lostReason}</p>}
                         </div>
                       )}
 
-                      {/* Hover action menu overlay */}
-                      <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150 bg-[#282828] pl-1.5 py-0.5 rounded-l-md border-l border-zinc-800">
+                      {/* Action overlay on hover */}
+                      <div className="absolute top-2.5 right-2.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
                         {clientPhone && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               handleOpenWaModal(clientPhone, opp.clientId, clientName, {
-                                cropType: opp.cropType,
-                                quantity_tn: opp.quantity_tn,
-                                price_usd: opp.price_usd,
-                                location: opp.location
+                                cropType: opp.cropType, quantity_tn: opp.quantity_tn,
+                                price_usd: opp.price_usd, location: opp.location
                               });
                             }}
-                            className="p-1 text-green-400 hover:bg-green-500/10 rounded transition-colors cursor-pointer"
-                            title="Contactar WhatsApp (Plantilla)"
+                            className="p-1.5 text-green-400 bg-[#1f1f1f] hover:bg-green-500/10 rounded-lg transition-colors cursor-pointer border border-zinc-800"
+                            title="WhatsApp"
                           >
                             <Phone className="w-3 h-3" />
                           </button>
                         )}
                         <button
                           onClick={(e) => { e.stopPropagation(); deleteOpp(opp.id); }}
-                          className="p-1 text-zinc-400 hover:text-red-500 hover:bg-red-500/10 rounded transition-colors cursor-pointer"
-                          title="Eliminar Oportunidad"
+                          className="p-1.5 text-zinc-500 bg-[#1f1f1f] hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer border border-zinc-800"
+                          title="Eliminar"
                         >
                           <Trash2 className="w-3 h-3" />
                         </button>
