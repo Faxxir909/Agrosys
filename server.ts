@@ -16,7 +16,79 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+app.disable('x-powered-by');
+
+// ----------------------------------------------------
+// Security Headers Middleware
+// ----------------------------------------------------
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(self), geolocation=()');
+  next();
+});
+
+// ----------------------------------------------------
+// Rate Limiting (In-Memory IP Throttling)
+// ----------------------------------------------------
+interface RateLimitRecord {
+  count: number;
+  resetAt: number;
+}
+const rateLimitMap = new Map<string, RateLimitRecord>();
+
+// Cleanup stale entries every 10 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, val] of rateLimitMap.entries()) {
+    if (val.resetAt <= now) {
+      rateLimitMap.delete(key);
+    }
+  }
+}, 600000);
+
+function createRateLimiter(options: { windowMs: number; max: number; message: string }) {
+  return (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const ip = req.ip || req.headers['x-forwarded-for']?.toString() || req.socket.remoteAddress || '127.0.0.1';
+    const key = `${req.path}:${ip}`;
+    const now = Date.now();
+    const record = rateLimitMap.get(key);
+
+    if (!record || record.resetAt <= now) {
+      rateLimitMap.set(key, { count: 1, resetAt: now + options.windowMs });
+      return next();
+    }
+
+    if (record.count >= options.max) {
+      const retryAfterSec = Math.ceil((record.resetAt - now) / 1000);
+      res.setHeader('Retry-After', retryAfterSec);
+      return res.status(429).json({ error: options.message });
+    }
+
+    record.count += 1;
+    next();
+  };
+}
+
+const authRateLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: 'Demasiados intentos de autenticación. Por seguridad, intente nuevamente en 15 minutos.'
+});
+
+const globalApiRateLimiter = createRateLimiter({
+  windowMs: 60 * 1000,
+  max: 300,
+  message: 'Límite de solicitudes alcanzado. Por favor aguarde unos segundos.'
+});
+
 app.use(cors());
+app.use('/api/', globalApiRateLimiter);
+app.use('/api/auth/login', authRateLimiter);
+app.use('/api/auth/register', authRateLimiter);
 app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 
@@ -721,6 +793,8 @@ async function getUserId(req: express.Request): Promise<string> {
 // ----------------------------------------------------
 // Authentication Routes (Local JWT)
 // ----------------------------------------------------
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { email, name, role, password } = req.body;
@@ -729,6 +803,16 @@ app.post('/api/auth/register', async (req, res) => {
     }
 
     const emailLower = email.toLowerCase().trim();
+    if (!EMAIL_REGEX.test(emailLower)) {
+      return res.status(400).json({ error: 'El formato del correo electrónico no es válido' });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
+    }
+
+    const cleanName = (name || 'Usuario').toString().trim().slice(0, 100);
+    const cleanRole = (role === 'admin' ? 'admin' : 'broker');
     const passwordHash = hashPassword(password);
     const id = crypto.randomUUID();
 
@@ -737,7 +821,7 @@ app.post('/api/auth/register', async (req, res) => {
       if (exists) {
         return res.status(400).json({ error: 'El email ya se encuentra registrado' });
       }
-      const user = { id, email: emailLower, name: name || 'Usuario', role: role || 'broker', passwordHash, createdAt: new Date() };
+      const user = { id, email: emailLower, name: cleanName, role: cleanRole, passwordHash, createdAt: new Date() };
       simulatedDb.users.push(user);
       const token = jwt.sign({ uid: id, email: emailLower }, JWT_SECRET, { expiresIn: '7d' });
       return res.status(201).json({ token, user: { id, email: emailLower, name: user.name, role: user.role } });
@@ -750,11 +834,11 @@ app.post('/api/auth/register', async (req, res) => {
 
     await dbQuery(
       'INSERT INTO users (id, email, name, role, password_hash) VALUES ($1, $2, $3, $4, $5)',
-      [id, emailLower, name || 'Usuario', role || 'broker', passwordHash]
+      [id, emailLower, cleanName, cleanRole, passwordHash]
     );
 
     const token = jwt.sign({ uid: id, email: emailLower }, JWT_SECRET, { expiresIn: '7d' });
-    res.status(201).json({ token, user: { id, email: emailLower, name: name || 'Usuario', role: role || 'broker' } });
+    res.status(201).json({ token, user: { id, email: emailLower, name: cleanName, role: cleanRole } });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -768,20 +852,16 @@ app.post('/api/auth/login', async (req, res) => {
     }
 
     const emailLower = email.toLowerCase().trim();
+    if (!EMAIL_REGEX.test(emailLower)) {
+      return res.status(400).json({ error: 'Credenciales inválidas' });
+    }
 
     if (isDbSimulated()) {
-      console.log('[DEBUG LOGIN] Current simulatedDb.users:', simulatedDb.users.map(u => ({ id: u.id, email: u.email, hasHash: !!u.passwordHash })));
       const user = simulatedDb.users.find(u => u.email.toLowerCase() === emailLower);
-      if (!user) {
-        console.log('[DEBUG LOGIN] User not found for email:', emailLower);
-        return res.status(400).json({ error: 'Credenciales inválidas' });
-      }
-      if (!user.passwordHash) {
-        console.log('[DEBUG LOGIN] User has no passwordHash:', emailLower);
+      if (!user || !user.passwordHash) {
         return res.status(400).json({ error: 'Credenciales inválidas' });
       }
       const verified = verifyPassword(password, user.passwordHash);
-      console.log('[DEBUG LOGIN] Password verification result:', verified);
       if (!verified) {
         return res.status(400).json({ error: 'Credenciales inválidas' });
       }
@@ -805,7 +885,6 @@ app.post('/api/auth/login', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
 app.get('/api/audit-logs', async (req, res) => {
   try {
     const userId = await getUserId(req);
