@@ -1,7 +1,7 @@
-import { makeWASocket, useMultiFileAuthState, DisconnectReason, Browsers, fetchLatestBaileysVersion } from '@whiskeysockets/baileys';
+import { makeWASocket, useMultiFileAuthState, DisconnectReason, Browsers, fetchLatestBaileysVersion, extractMessageContent } from '@whiskeysockets/baileys';
 import pino from 'pino';
 import * as qrcode from 'qrcode';
-import { processIncomingMessage } from './server_whatsapp_handler.ts';
+import { processIncomingMessage, messageDiagnostics } from './server_whatsapp_handler.ts';
 import fs from 'fs';
 
 let qrCodeDataURL: string | null = null;
@@ -11,10 +11,22 @@ let connectionStartTime = Date.now();
 let reconnectAttempts = 0;
 const MAX_RECONNECT_ATTEMPTS = 3;
 
+// In-memory buffer of recent messages to support Baileys encryption retries and getMessage callback
+const recentMessages = new Map<string, any>();
+function storeRecentMessage(keyId: string, msg: any) {
+    if (!keyId) return;
+    recentMessages.set(keyId, msg);
+    if (recentMessages.size > 500) {
+        const firstKey = recentMessages.keys().next().value;
+        if (firstKey) recentMessages.delete(firstKey);
+    }
+}
+
 export const getWhatsAppStatus = () => {
     return {
         status: currentStatus,
-        qr: qrCodeDataURL
+        qr: qrCodeDataURL,
+        diagnostics: messageDiagnostics
     };
 };
 
@@ -30,6 +42,7 @@ export async function resetWhatsAppConnection() {
     currentStatus = 'disconnected';
     qrCodeDataURL = null;
     reconnectAttempts = 0;
+    recentMessages.clear();
     try {
         if (fs.existsSync('./baileys_auth_info')) {
             fs.rmSync('./baileys_auth_info', { recursive: true, force: true });
@@ -40,28 +53,62 @@ export async function resetWhatsAppConnection() {
     }
 }
 
-function getMessageText(message: any): string | null {
+export function getMessageText(message: any): string | null {
     if (!message) return null;
-    
-    // Direct fields
-    if (message.conversation) return message.conversation;
-    if (message.extendedTextMessage?.text) return message.extendedTextMessage.text;
-    if (message.imageMessage?.caption) return message.imageMessage.caption;
-    if (message.documentMessage?.caption) return message.documentMessage.caption;
-    if (message.videoMessage?.caption) return message.videoMessage.caption;
-    
+
+    // Unpack deviceSentMessage (sent from user's phone in multi-device testing)
+    if (message.deviceSentMessage?.message) {
+        return getMessageText(message.deviceSentMessage.message);
+    }
+
+    // Unpack edited messages (protocolMessage or editedMessage wrapper)
+    if (message.protocolMessage?.editedMessage) {
+        return getMessageText(message.protocolMessage.editedMessage);
+    }
+    if (message.editedMessage?.message) {
+        return getMessageText(message.editedMessage.message);
+    }
+
+    // Normalize using Baileys official extractMessageContent
+    let normalized = message;
+    try {
+        normalized = extractMessageContent(message) || message;
+    } catch {
+        normalized = message;
+    }
+
+    // Direct text fields
+    if (typeof normalized.conversation === 'string' && normalized.conversation.trim()) {
+        return normalized.conversation.trim();
+    }
+    if (typeof normalized.extendedTextMessage?.text === 'string' && normalized.extendedTextMessage.text.trim()) {
+        return normalized.extendedTextMessage.text.trim();
+    }
+    if (typeof normalized.imageMessage?.caption === 'string' && normalized.imageMessage.caption.trim()) {
+        return normalized.imageMessage.caption.trim();
+    }
+    if (typeof normalized.documentMessage?.caption === 'string' && normalized.documentMessage.caption.trim()) {
+        return normalized.documentMessage.caption.trim();
+    }
+    if (typeof normalized.videoMessage?.caption === 'string' && normalized.videoMessage.caption.trim()) {
+        return normalized.videoMessage.caption.trim();
+    }
+
     // Support wrapped message models (viewOnce, ephemeral, templates, etc.)
-    if (message.viewOnceMessageV2?.message) return getMessageText(message.viewOnceMessageV2.message);
-    if (message.viewOnceMessage?.message) return getMessageText(message.viewOnceMessage.message);
-    if (message.ephemeralMessage?.message) return getMessageText(message.ephemeralMessage.message);
-    if (message.documentWithCaptionMessage?.message) return getMessageText(message.documentWithCaptionMessage.message);
-    
-    // Template or Interactive messages (often sent by automated business services)
-    if (message.templateMessage?.hydratedTemplate?.hydratedContentText) return message.templateMessage.hydratedTemplate.hydratedContentText;
-    if (message.templateMessage?.hydratedFourRowTemplate?.hydratedContentText) return message.templateMessage.hydratedFourRowTemplate.hydratedContentText;
-    if (message.interactiveMessage?.body?.text) return message.interactiveMessage.body.text;
-    if (message.buttonsMessage?.contentText) return message.buttonsMessage.contentText;
-    
+    if (normalized.viewOnceMessageV2?.message) return getMessageText(normalized.viewOnceMessageV2.message);
+    if (normalized.viewOnceMessageV2Extension?.message) return getMessageText(normalized.viewOnceMessageV2Extension.message);
+    if (normalized.viewOnceMessage?.message) return getMessageText(normalized.viewOnceMessage.message);
+    if (normalized.ephemeralMessage?.message) return getMessageText(normalized.ephemeralMessage.message);
+    if (normalized.documentWithCaptionMessage?.message) return getMessageText(normalized.documentWithCaptionMessage.message);
+
+    // Template or Interactive messages
+    if (normalized.templateMessage?.hydratedTemplate?.hydratedContentText) return normalized.templateMessage.hydratedTemplate.hydratedContentText;
+    if (normalized.templateMessage?.hydratedFourRowTemplate?.hydratedContentText) return normalized.templateMessage.hydratedFourRowTemplate.hydratedContentText;
+    if (normalized.interactiveMessage?.body?.text) return normalized.interactiveMessage.body.text;
+    if (normalized.buttonsMessage?.contentText) return normalized.buttonsMessage.contentText;
+    if (normalized.buttonsResponseMessage?.selectedDisplayText) return normalized.buttonsResponseMessage.selectedDisplayText;
+    if (normalized.templateButtonReplyMessage?.selectedDisplayText) return normalized.templateButtonReplyMessage.selectedDisplayText;
+
     return null;
 }
 
@@ -85,7 +132,7 @@ export async function startWhatsAppConnection() {
         }
 
         const { state, saveCreds } = await useMultiFileAuthState('./baileys_auth_info');
-        
+
         sock = makeWASocket({
             version: waVersion,
             auth: state,
@@ -93,7 +140,13 @@ export async function startWhatsAppConnection() {
             logger: pino({ level: 'silent' }) as any,
             browser: Browsers.macOS('Chrome'),
             syncFullHistory: false,
-            markOnlineOnConnect: true
+            markOnlineOnConnect: true,
+            getMessage: async (key: any) => {
+                if (key?.id && recentMessages.has(key.id)) {
+                    return recentMessages.get(key.id)?.message;
+                }
+                return undefined;
+            }
         });
 
         sock.ev.on('creds.update', saveCreds);
@@ -123,7 +176,7 @@ export async function startWhatsAppConnection() {
 
         sock.ev.on('connection.update', async (update: any) => {
             const { connection, lastDisconnect, qr } = update;
-            
+
             console.log(`[WA DEBUG] connection.update: connection=${connection || 'none'}, status=${currentStatus}, qrCode=${!!qr}`);
 
             if (qr) {
@@ -139,7 +192,7 @@ export async function startWhatsAppConnection() {
                 currentStatus = 'disconnected';
                 qrCodeDataURL = null;
                 const statusCode = (lastDisconnect?.error as any)?.output?.statusCode;
-                
+
                 let shouldReconnect = true;
 
                 if (statusCode === DisconnectReason.loggedOut || statusCode === 401) {
@@ -173,7 +226,7 @@ export async function startWhatsAppConnection() {
                 } else {
                     console.log('[WA DEBUG] WhatsApp connection closed due to:', lastDisconnect?.error?.message || lastDisconnect?.error || 'Unknown error');
                 }
-                
+
                 // reconnect with max retry limit
                 if (shouldReconnect) {
                     reconnectAttempts++;
@@ -195,42 +248,59 @@ export async function startWhatsAppConnection() {
             }
         });
 
-        async function handleBaileysMessage(msg: any) {
+        const handleBaileysMessage = async (msg: any, isLiveNotify: boolean = false) => {
             if (!msg) return;
-            
+
             const messageId = msg.key?.id || 'unknown';
             const remoteJid = msg.key?.remoteJid || '';
-            
-            // Skip status broadcast messages
-            if (remoteJid === 'status@broadcast') return;
 
-            // Skip historical messages synced from history/logs on connection startup
-            const msgTimestamp = msg.messageTimestamp ? Number(msg.messageTimestamp) * 1000 : Date.now();
-            if (msgTimestamp < connectionStartTime - 300000) {
-                console.log(`[WA DEBUG] Skipping historical message ${messageId} from ${remoteJid} (Sent at: ${new Date(msgTimestamp).toISOString()}, Connection started at: ${new Date(connectionStartTime).toISOString()})`);
+            // Store message in recent buffer for getMessage decryption retries
+            storeRecentMessage(messageId, msg);
+
+            // Skip status broadcast and newsletter channels
+            if (remoteJid === 'status@broadcast' || remoteJid.endsWith('@newsletter')) return;
+
+            // Timestamp parsing: handle Long object, number, or string safely
+            let rawTs = msg.messageTimestamp;
+            let tsSeconds = 0;
+            if (typeof rawTs === 'number') {
+                tsSeconds = rawTs;
+            } else if (rawTs && typeof rawTs === 'object') {
+                tsSeconds = Number((rawTs as any).low ?? (rawTs as any).toNumber?.() ?? 0);
+            } else if (typeof rawTs === 'string') {
+                tsSeconds = parseInt(rawTs, 10) || 0;
+            }
+
+            const msgTimestamp = tsSeconds > 0
+                ? (tsSeconds < 10000000000 ? tsSeconds * 1000 : tsSeconds)
+                : Date.now();
+
+            // Only skip historical messages if this is NOT a live notification event and is older than startup
+            if (!isLiveNotify && msgTimestamp < connectionStartTime - 300000) {
+                console.log(`[WA DEBUG] Skipping historical appended message ${messageId} from ${remoteJid}`);
                 return;
             }
 
             if (!msg.message) {
-                console.log(`[WA DEBUG] Message ${messageId} skipped: msg.message is empty (possibly a receipt, reaction, or protocol message).`);
+                console.log(`[WA DEBUG] Message ${messageId} skipped: msg.message is empty (receipt, reaction, or protocol message).`);
                 return;
             }
 
             const keys = Object.keys(msg.message || {});
             const textContent = getMessageText(msg.message);
-            
+
             if (!textContent) {
                 console.log(`[WA DEBUG] Message ${messageId} from ${remoteJid} skipped: No text content found. Available keys: ${JSON.stringify(keys)}`);
                 return;
             }
 
-            // Skip messages sent by ourselves (fromMe) to prevent recursive loops, but allow user self-testing messages
+            // Skip automated responses sent by the bot (fromMe) to prevent recursive loops
             if (msg.key?.fromMe) {
                 const lowerText = textContent.toLowerCase();
                 if (
-                    lowerText.includes('agrosys') || 
-                    lowerText.includes('registramos tu') || 
-                    lowerText.includes('cruce de negocio') || 
+                    lowerText.includes('agrosys') ||
+                    lowerText.includes('registramos tu') ||
+                    lowerText.includes('cruce de negocio') ||
                     lowerText.includes('alerta de precio') ||
                     lowerText.includes('confirmamos la operacion')
                 ) {
@@ -240,26 +310,26 @@ export async function startWhatsAppConnection() {
             }
 
             const isGroup = remoteJid.endsWith('@g.us');
-            
-            // Extract logged-in JID and other JID to detect self-chats and self-sent messages
+
+            // Extract clean phone numbers (stripping device IDs like :10)
             const myJid = sock?.user?.id || '';
-            const myCleanPhone = myJid.split(':')[0].split('@')[0];
-            const remoteCleanPhone = remoteJid.split('@')[0] || '';
+            const myCleanPhone = myJid.split('@')[0].split(':')[0];
+            const remoteCleanPhone = remoteJid.split('@')[0].split(':')[0];
             const isSelfChat = remoteCleanPhone === myCleanPhone;
 
             let senderPhone = 'Unknown';
-            if (msg.key.fromMe) {
+            if (msg.key?.fromMe) {
                 senderPhone = myCleanPhone || 'Me';
             } else {
-                const senderJid = msg.key.participantAlt || msg.key.remoteJidAlt || msg.key.participant || remoteJid || '';
-                senderPhone = senderJid.split('@')[0] || 'Unknown';
+                const senderJid = msg.key?.participantAlt || msg.key?.remoteJidAlt || msg.key?.participant || remoteJid || '';
+                senderPhone = senderJid.split('@')[0].split(':')[0] || 'Unknown';
             }
 
-            const sourceGroup = isGroup 
-                ? 'Grupo WhatsApp' 
-                : (isSelfChat ? 'Mensaje a Mí Mismo (Prueba)' : (msg.key.fromMe ? 'Enviado por Mí' : 'Chat Privado'));
+            const sourceGroup = isGroup
+                ? 'Grupo WhatsApp'
+                : (isSelfChat ? 'Mensaje a Mí Mismo (Prueba)' : (msg.key?.fromMe ? 'Enviado por Mí' : 'Chat Privado'));
 
-            console.log(`[WA DEBUG] Processing msg ${messageId} from ${senderPhone} (Group: ${isGroup}, fromMe: ${msg.key.fromMe || false}, SelfChat: ${isSelfChat}): ${textContent}`);
+            console.log(`[WA DEBUG] Processing msg ${messageId} from ${senderPhone} (Group: ${isGroup}, fromMe: ${msg.key?.fromMe || false}, Live: ${isLiveNotify}): ${textContent}`);
             try {
                 await processIncomingMessage(textContent, senderPhone, sourceGroup, messageId);
             } catch (err) {
@@ -268,10 +338,10 @@ export async function startWhatsAppConnection() {
         }
 
         sock.ev.on('messages.upsert', async (m: any) => {
-            console.log(`[WA RAW] messages.upsert event: type=${m.type}, messageCount=${m.messages?.length || 0}`);
+            const isLiveNotify = m.type === 'notify';
+            console.log(`[WA RAW] messages.upsert event: type=${m.type}, count=${m.messages?.length || 0}`);
             for (const msg of (m.messages || [])) {
-                console.log(`[WA RAW] Message entry: id=${msg.key?.id}, remoteJid=${msg.key?.remoteJid}, fromMe=${msg.key?.fromMe}, participant=${msg.key?.participant || 'none'}, timestamp=${msg.messageTimestamp}, messageKeys=${JSON.stringify(Object.keys(msg.message || {}))}`);
-                await handleBaileysMessage(msg);
+                await handleBaileysMessage(msg, isLiveNotify);
             }
         });
 
@@ -279,7 +349,7 @@ export async function startWhatsAppConnection() {
             if (messages && Array.isArray(messages)) {
                 console.log(`[WA DEBUG] messaging-history.set received ${messages.length} messages.`);
                 for (const msg of messages) {
-                    await handleBaileysMessage(msg);
+                    await handleBaileysMessage(msg, false);
                 }
             }
         });

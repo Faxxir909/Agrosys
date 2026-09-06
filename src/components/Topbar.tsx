@@ -24,7 +24,7 @@ export function Topbar() {
   };
 
   return (
-    <header className="h-14 sm:h-16 bg-[#1e1e1e] border-b border-[#333] flex items-center justify-between px-3 sm:px-6 lg:px-8 sticky top-0 z-30 w-full transition-all duration-350">
+    <header className="min-h-14 sm:h-16 bg-[#1e1e1e] border-b border-[#333] flex items-center justify-between px-3 sm:px-6 lg:px-8 sticky top-0 z-30 w-full min-w-0 pt-[env(safe-area-inset-top)] sm:pt-0 transition-all duration-350">
       {/* Mobile Search Overlay */}
       {mobileSearchOpen ? (
         <div className="flex items-center gap-2 w-full animate-fade-in md:hidden">
@@ -44,7 +44,7 @@ export function Topbar() {
               setMobileSearchOpen(false);
               setSearchQuery('');
             }}
-            className="p-1.5 text-zinc-400 hover:text-white rounded-lg"
+            className="w-10 h-10 flex items-center justify-center text-zinc-400 hover:text-white rounded-lg"
             title="Cerrar búsqueda"
           >
             <X className="w-5 h-5" />
@@ -56,7 +56,7 @@ export function Topbar() {
             {/* Toggle Menú Mobile */}
             <button 
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="lg:hidden p-1.5 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors shrink-0"
+              className="lg:hidden w-10 h-10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors shrink-0"
               title="Abrir menú"
             >
               <Menu className="w-5 h-5" />
@@ -72,7 +72,7 @@ export function Topbar() {
             {/* Mobile Search Trigger Button */}
             <button
               onClick={() => setMobileSearchOpen(true)}
-              className="md:hidden p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-full transition-colors"
+              className="md:hidden w-10 h-10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/5 rounded-full transition-colors"
               title="Buscar"
             >
               <Search className="w-4 h-4" />

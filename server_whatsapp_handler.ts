@@ -5,24 +5,42 @@ import crypto from 'crypto';
 // In-memory fallback
 export const fallbackMessages: any[] = [];
 
+export const messageDiagnostics = {
+  received: 0,
+  saved: 0,
+  filtered: 0,
+  failed: 0,
+  lastReceivedAt: null as string | null,
+  lastResult: 'Todavía no se recibieron mensajes de texto en esta sesión.'
+};
+
 // WhatsApp Settings
 export const whatsappSettings = {
   bypassHeuristic: false,
   matchTolerance: 0.15
 };
 
+// Candidate Gemini models with priority fallback
+const CANDIDATE_GEMINI_MODELS = [
+  'gemini-3.5-flash',
+  'gemini-3.6-flash',
+  'gemini-flash-latest'
+];
+
 // Layer 1 Heuristic Filter to filter out general messages before running LLM
 export function hasTradeIntent(text: string): boolean {
   if (!text) return false;
   const cleanText = text.toLowerCase()
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, ""); // strip accents (e.g. maíz -> maiz)
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // strip accents (e.g. maíz -> maiz)
+    .replace(/(\d+)([a-z]+)/gi, '$1 $2') // separate 500tn -> 500 tn
+    .replace(/([a-z]+)(\d+)/gi, '$1 $2');
 
   const grainKeywords = [
-    'soja', 'sj', 'soj', 'sja', 'poroto',
+    'soja', 'sojas', 'sj', 'soj', 'sja', 'poroto',
     'maiz', 'mz', 'miz', 'maices',
-    'trigo', 'tg', 'tgo',
-    'sorgo', 'sg', 'srg',
-    'girasol', 'gir', 'gso', 'sol'
+    'trigo', 'trigos', 'tg', 'tgo',
+    'sorgo', 'sorgos', 'sg', 'srg',
+    'girasol', 'girasoles', 'gir', 'gso', 'sol'
   ];
 
   const tradeKeywords = [
@@ -30,7 +48,7 @@ export function hasTradeIntent(text: string): boolean {
     'compro', 'busco', 'necesito', 'pago', 'tomo', 'requiero', 'cupo', 'pagamos', 'compramos', 'buscamos',
     'venta', 'compra', 'disponible', 'disp', 'forward', 'fwd', 'contrato', 'contractual',
     'usd', 'u$s', 'ars', 'toneladas', 'tn', 'ton', 'camion', 'camiones', 'qq', 'quintal', 'quintales',
-    'cámara', 'camara', 'grado', 'ph'
+    'camara', 'grado', 'ph'
   ];
 
   // Split word tokens by non-alphanumeric chars
@@ -48,7 +66,9 @@ export function hasTradeIntent(text: string): boolean {
 // Local Regex Parser to fallback to if Gemini API key is missing or calls fail
 export function fallbackRegexParse(text: string) {
   const cleanText = text.toLowerCase()
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, ""); // strip accents
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // strip accents
+    .replace(/(\d+)([a-z]+)/gi, '$1 $2')
+    .replace(/([a-z]+)(\d+)/gi, '$1 $2');
 
   let type: 'oferta' | 'demanda' | 'desconocido' = 'desconocido';
   if (/\b(vendo|venta|tengo|ofrezco|sale|dispo|disponible|disponibles|oferta|liquidar|entrego|fijo|fijar)\b/i.test(cleanText)) {
@@ -58,15 +78,15 @@ export function fallbackRegexParse(text: string) {
   }
 
   let crop = 'desconocido';
-  if (/\b(soja|sj|soj|sja|poroto)\b/i.test(cleanText)) {
+  if (/\b(soja|sojas|sj|soj|sja|poroto)\b/i.test(cleanText)) {
     crop = 'soja';
   } else if (/\b(maiz|mz|miz|maices)\b/i.test(cleanText)) {
     crop = 'maiz';
-  } else if (/\b(trigo|tg|tgo)\b/i.test(cleanText)) {
+  } else if (/\b(trigo|trigos|tg|tgo)\b/i.test(cleanText)) {
     crop = 'trigo';
-  } else if (/\b(sorgo|sg|srg)\b/i.test(cleanText)) {
+  } else if (/\b(sorgo|sorgos|sg|srg)\b/i.test(cleanText)) {
     crop = 'sorgo';
-  } else if (/\b(girasol|gir|gso|sol)\b/i.test(cleanText)) {
+  } else if (/\b(girasol|girasoles|gir|gso|sol)\b/i.test(cleanText)) {
     crop = 'girasol';
   }
 
@@ -228,12 +248,26 @@ async function processNegotiationResponse(rawMessage: string, senderPhone: strin
 }
 
 export async function processIncomingMessage(rawMessage: string, senderPhone: string, sourceGroup: string = 'WhatsApp Baileys', messageId?: string) {
+  messageDiagnostics.received++;
+  messageDiagnostics.lastReceivedAt = new Date().toISOString();
+  messageDiagnostics.lastResult = 'Mensaje recibido. Procesando…';
+  try {
+    await processMessage(rawMessage, senderPhone, sourceGroup, messageId);
+  } catch (error) {
+    messageDiagnostics.failed++;
+    messageDiagnostics.lastResult = 'Error procesando el mensaje. Revisá los registros del servidor.';
+    console.error(`[WA HANDLER] Error processing message:`, error);
+  }
+}
+
+async function processMessage(rawMessage: string, senderPhone: string, sourceGroup: string, messageId?: string) {
   const alertId = messageId || crypto.randomUUID();
 
-  // Check for duplicates before executing any logic or calling Gemini model
+  // Check for duplicates before executing any logic
   if (isDbSimulated()) {
     if (simulatedDb.whatsapp_alerts.some(a => a.id === alertId)) {
       console.log(`[WA HANDLER] Message ${alertId} already processed in memory. Skipping.`);
+      messageDiagnostics.lastResult = 'Mensaje recibido anteriormente; ya estaba guardado.';
       return;
     }
   } else {
@@ -241,6 +275,7 @@ export async function processIncomingMessage(rawMessage: string, senderPhone: st
       const result = await dbQuery('SELECT id FROM whatsapp_alerts WHERE id = $1', [alertId]);
       if (result.rows.length > 0) {
         console.log(`[WA HANDLER] Message ${alertId} already processed in PostgreSQL. Skipping.`);
+        messageDiagnostics.lastResult = 'Mensaje recibido anteriormente; ya estaba guardado.';
         return;
       }
     } catch (err) {
@@ -249,11 +284,14 @@ export async function processIncomingMessage(rawMessage: string, senderPhone: st
   }
 
   if (await processNegotiationResponse(rawMessage, senderPhone)) {
+    messageDiagnostics.lastResult = 'Respuesta de negociación recibida y procesada.';
     return;
   }
 
   // 1. Perform Layer 1 heuristic filtering to avoid calling Gemini for non-trade chats
   if (!whatsappSettings.bypassHeuristic && !hasTradeIntent(rawMessage)) {
+    messageDiagnostics.filtered++;
+    messageDiagnostics.lastResult = 'Mensaje recibido y filtrado: no se detectó una oferta o demanda de granos.';
     console.log(`[WA HANDLER] Message ${alertId} filtered out by Layer 1 heuristic check. Not a grain trade offer/demand.`);
     return;
   }
@@ -261,30 +299,28 @@ export async function processIncomingMessage(rawMessage: string, senderPhone: st
   let suggestedType = 'desconocido';
   let suggestedCropType = 'desconocido';
   let suggestedQuantity = 0;
-  let suggestedPrice = null;
+  let suggestedPrice: number | null = null;
   let suggestedQuantityUnit = 'tn';
   let suggestedPriceUnit = 'USD';
-  let originalQuantity = null;
-  let originalPrice = null;
+  let originalQuantity: number | null = null;
+  let originalPrice: number | null = null;
   let location: string | null = null;
   let paymentTerms: string | null = null;
   let grainQuality: string | null = null;
 
-  // Analyze with Gemini. Incoming messages are not stored with invented extraction data.
+  // 2. Analyze with Gemini with model priority fallback
   let parsedByGemini = false;
-  try {
-     if (process.env.GEMINI_API_KEY) {
-        console.log(`[WA HANDLER] Calling Gemini API for message ${alertId}...`);
-        const ai = new GoogleGenAI({
-          apiKey: process.env.GEMINI_API_KEY.trim(),
-          httpOptions: {
-            headers: {
-              'User-Agent': 'aistudio-build',
-            }
-          }
-        });
-        
-        const prompt = `Analiza el siguiente mensaje de un grupo de WhatsApp de compra/venta de granos agropecuarios en Argentina.
+  if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim()) {
+    const ai = new GoogleGenAI({
+      apiKey: process.env.GEMINI_API_KEY.trim(),
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        }
+      }
+    });
+
+    const prompt = `Analiza el siguiente mensaje de un grupo de WhatsApp de compra/venta de granos agropecuarios en Argentina.
 Identifica y extrae los datos del negocio, prestando especial atención al tipo de operación, las unidades de cantidad, moneda, ubicación y condiciones del negocio.
 
 REGLAS CRÍTICAS DE FILTRADO (INTENT COMERCIAL):
@@ -337,15 +373,18 @@ Devuelve un JSON estrictamente válido con el siguiente formato:
 }
 
 Mensaje: "${rawMessage}"`;
-        
+
+    for (const modelName of CANDIDATE_GEMINI_MODELS) {
+      try {
+        console.log(`[WA HANDLER] Calling Gemini (${modelName}) for message ${alertId}...`);
         const response = await ai.models.generateContent({
-           model: 'gemini-3.6-flash',
-           contents: prompt,
-           config: {
-             responseMimeType: 'application/json'
-           }
+          model: modelName,
+          contents: prompt,
+          config: {
+            responseMimeType: 'application/json'
+          }
         });
-        
+
         const text = response.text || '';
         const match = text.match(/\{[\s\S]*\}/);
         if (match) {
@@ -362,25 +401,41 @@ Mensaje: "${rawMessage}"`;
           paymentTerms = parsed.paymentTerms || null;
           grainQuality = parsed.grainQuality || null;
           parsedByGemini = true;
+          console.log(`[WA HANDLER] Successfully parsed with Gemini model ${modelName}`);
+          break;
         }
-     } else {
-        throw new Error('GEMINI_API_KEY no está configurada.');
-     }
-  } catch (e) {
-     console.error('[WA HANDLER] Gemini extraction error:', e);
+      } catch (geminiErr: any) {
+        console.warn(`[WA HANDLER] Gemini model ${modelName} failed:`, geminiErr?.message || geminiErr);
+      }
+    }
   }
 
+  // 3. Graceful Fallback: If Gemini is unavailable, rate-limited, or failed, use fallbackRegexParse
   if (!parsedByGemini) {
-     throw new Error(`No se pudo analizar el mensaje ${alertId} con Gemini.`);
+    console.log(`[WA HANDLER] Falling back to local Regex parser for message ${alertId}`);
+    const parsed = fallbackRegexParse(rawMessage);
+    suggestedType = parsed.type;
+    suggestedCropType = parsed.crop;
+    suggestedQuantity = parsed.quantity;
+    suggestedPrice = parsed.price;
+    suggestedQuantityUnit = parsed.quantityUnit;
+    suggestedPriceUnit = parsed.priceUnit;
+    originalQuantity = parsed.originalQuantity;
+    originalPrice = parsed.originalPrice;
+    location = parsed.location;
+    paymentTerms = parsed.paymentTerms;
+    grainQuality = parsed.grainQuality;
   }
 
-  // 2. Filter out non-trade messages (anything that isn't a valid grain offer or demand)
+  // 4. Filter out non-trade messages (anything that isn't a valid grain offer or demand)
   if (suggestedType === 'desconocido' || suggestedCropType === 'desconocido') {
-     console.log(`[WA HANDLER] Discarding message ${alertId} because it is not a valid grain trade offer or demand. (Type: ${suggestedType}, Crop: ${suggestedCropType})`);
-     return;
+    messageDiagnostics.filtered++;
+    messageDiagnostics.lastResult = 'Mensaje recibido y filtrado por el análisis: no se identificó una operación de granos.';
+    console.log(`[WA HANDLER] Discarding message ${alertId} because it is not a valid grain trade offer or demand. (Type: ${suggestedType}, Crop: ${suggestedCropType})`);
+    return;
   }
 
-  // 3. Match client by phone number
+  // 5. Match client by phone number
   let clientId: string | null = null;
   let esProspecto = true;
 
@@ -423,118 +478,123 @@ Mensaje: "${rawMessage}"`;
     }
   }
 
-  // 4. Save to database
+  // 6. Save to database
   try {
-     const alertData = {
-       id: alertId,
-       rawMessage,
-       sourceGroup,
-       senderPhone,
-       suggestedType,
-       suggestedCropType,
-       suggestedQuantity,
-       suggestedPrice,
-       suggestedQuantityUnit,
-       suggestedPriceUnit,
-       originalQuantity,
-       originalPrice,
-       location,
-       paymentTerms,
-       grainQuality,
-       status: 'nueva',
-       ownerId: 'GLOBAL',
-       createdAt: new Date(),
-       clientId,
-       esProspecto
-     };
+    const alertData = {
+      id: alertId,
+      rawMessage,
+      sourceGroup,
+      senderPhone,
+      suggestedType,
+      suggestedCropType,
+      suggestedQuantity,
+      suggestedPrice,
+      suggestedQuantityUnit,
+      suggestedPriceUnit,
+      originalQuantity,
+      originalPrice,
+      location,
+      paymentTerms,
+      grainQuality,
+      status: 'nueva',
+      ownerId: 'GLOBAL',
+      createdAt: new Date(),
+      clientId,
+      esProspecto
+    };
 
-     if (isDbSimulated()) {
-         simulatedDb.whatsapp_alerts.push(alertData);
-         console.log('Saved message to in-memory fallback (Postgres unconfigured):', alertData);
-     } else {
-         await dbQuery(
-           `INSERT INTO whatsapp_alerts (
-             id, raw_message, source_group, sender_phone, suggested_type, suggested_crop_type, 
-             suggested_quantity, suggested_price, suggested_quantity_unit, suggested_price_unit, 
-             original_quantity, original_price, location, status, owner_id, created_at, client_id, es_prospecto,
-             payment_terms, grain_quality
-           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)`,
-           [
-             alertId, rawMessage, sourceGroup, senderPhone, suggestedType, suggestedCropType,
-             suggestedQuantity, suggestedPrice, suggestedQuantityUnit, suggestedPriceUnit,
-             originalQuantity, originalPrice, alertData.location, 'nueva', 'GLOBAL', alertData.createdAt,
-             clientId, esProspecto, paymentTerms, grainQuality
-           ]
-         );
-         console.log(`Successfully saved WhatsApp alert ${alertId} to PostgreSQL`);
-     }
+    if (isDbSimulated()) {
+      simulatedDb.whatsapp_alerts.push(alertData);
+      console.log('Saved message to in-memory fallback (Postgres unconfigured):', alertData);
+    } else {
+      await dbQuery(
+        `INSERT INTO whatsapp_alerts (
+          id, raw_message, source_group, sender_phone, suggested_type, suggested_crop_type, 
+          suggested_quantity, suggested_price, suggested_quantity_unit, suggested_price_unit, 
+          original_quantity, original_price, location, status, owner_id, created_at, client_id, es_prospecto,
+          payment_terms, grain_quality
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)`,
+        [
+          alertId, rawMessage, sourceGroup, senderPhone, suggestedType, suggestedCropType,
+          suggestedQuantity, suggestedPrice, suggestedQuantityUnit, suggestedPriceUnit,
+          originalQuantity, originalPrice, alertData.location, 'nueva', 'GLOBAL', alertData.createdAt,
+          clientId, esProspecto, paymentTerms, grainQuality
+        ]
+      );
+      console.log(`Successfully saved WhatsApp alert ${alertId} to PostgreSQL`);
+    }
 
-      // Check for real-time matches against active CRM opportunities
-      if (suggestedType !== 'desconocido' && suggestedCropType !== 'desconocido') {
-        let matchingOpps: any[] = [];
-        if (isDbSimulated()) {
-          matchingOpps = simulatedDb.opportunities.filter(o => 
-            o.status === 'abierta' && 
-            o.cropType === suggestedCropType && 
-            o.type !== suggestedType
+    messageDiagnostics.saved++;
+    messageDiagnostics.lastResult = `Mensaje recibido y guardado en Alertas WhatsApp (${suggestedType.toUpperCase()} de ${suggestedCropType.toUpperCase()}).`;
+
+    // Check for real-time matches against active CRM opportunities
+    if (suggestedType !== 'desconocido' && suggestedCropType !== 'desconocido') {
+      let matchingOpps: any[] = [];
+      if (isDbSimulated()) {
+        matchingOpps = simulatedDb.opportunities.filter(o =>
+          o.status === 'abierta' &&
+          o.cropType === suggestedCropType &&
+          o.type !== suggestedType
+        );
+      } else {
+        try {
+          const oppositeType = suggestedType === 'oferta' ? 'demanda' : 'oferta';
+          const result = await dbQuery(
+            `SELECT id, client_id as "clientId", quantity_tn as "quantity_tn", price_usd as "price_usd", location 
+             FROM opportunities 
+             WHERE status = 'abierta' AND crop_type = $1 AND type = $2`,
+            [suggestedCropType, oppositeType]
           );
+          matchingOpps = result.rows;
+        } catch (e) {
+          console.error('[WA MATCH ENGINE] Error searching matching opportunities:', e);
+        }
+      }
+
+      if (matchingOpps.length > 0) {
+        console.log(`[WA MATCH ENGINE] ⚡ ALERTA COMPATIBLE: El mensaje entrante de ${suggestedType} de ${suggestedCropType} cruza con ${matchingOpps.length} oportunidades activas en el CRM!`);
+      }
+    }
+
+    // Fire callback to notify Socket.io clients
+    if (onAlertAddedCallback) {
+      onAlertAddedCallback();
+    }
+
+    // Try sending a WhatsApp auto-reply confirmation if valid phone
+    const cleanDigits = senderPhone.replace(/\D/g, '');
+    if (suggestedCropType !== 'desconocido' && suggestedQuantity > 0 && cleanDigits.length >= 8 && senderPhone !== 'Unknown' && senderPhone !== 'Me') {
+      let clientName: string | null = null;
+      if (clientId) {
+        if (isDbSimulated()) {
+          const matched = simulatedDb.clients.find(c => c.id === clientId);
+          if (matched) clientName = matched.name;
         } else {
           try {
-            const oppositeType = suggestedType === 'oferta' ? 'demanda' : 'oferta';
-            const result = await dbQuery(
-              `SELECT id, client_id as "clientId", quantity_tn as "quantity_tn", price_usd as "price_usd", location 
-               FROM opportunities 
-               WHERE status = 'abierta' AND crop_type = $1 AND type = $2`,
-              [suggestedCropType, oppositeType]
-            );
-            matchingOpps = result.rows;
-          } catch (e) {
-            console.error('[WA MATCH ENGINE] Error searching matching opportunities:', e);
-          }
-        }
-
-        if (matchingOpps.length > 0) {
-          console.log(`[WA MATCH ENGINE] ⚡ ALERTA COMPATIBLE: El mensaje entrante de ${suggestedType} de ${suggestedCropType} cruza con ${matchingOpps.length} oportunidades activas en el CRM!`);
-        }
-      }
-
-      // Fire callback to notify Socket.io clients
-      if (onAlertAddedCallback) {
-        onAlertAddedCallback();
-      }
-
-      // Try sending a WhatsApp auto-reply confirmation
-      if (suggestedCropType !== 'desconocido' && suggestedQuantity > 0) {
-        let clientName: string | null = null;
-        if (clientId) {
-          if (isDbSimulated()) {
-            const matched = simulatedDb.clients.find(c => c.id === clientId);
-            if (matched) clientName = matched.name;
-          } else {
-            try {
-              const result = await dbQuery("SELECT name FROM clients WHERE id = $1", [clientId]);
-              if (result.rows.length > 0) {
-                clientName = result.rows[0].name;
-              }
-            } catch (e) {
-              console.error('[WA AUTO-REPLY] Error searching client name:', e);
+            const result = await dbQuery("SELECT name FROM clients WHERE id = $1", [clientId]);
+            if (result.rows.length > 0) {
+              clientName = result.rows[0].name;
             }
+          } catch (e) {
+            console.error('[WA AUTO-REPLY] Error searching client name:', e);
           }
         }
-
-        const typeDescription = suggestedType === 'oferta' 
-          ? 'oferta de VENTA 🛒' 
-          : suggestedType === 'demanda' 
-            ? 'demanda de COMPRA 🛍️' 
-            : 'mensaje 📝';
-        const confirmationText = `Hola${clientName ? ' ' + clientName : ''}! Registramos tu ${typeDescription} en el sistema:\n\n🌾 Grano: ${suggestedCropType.toUpperCase()}\n📐 Cantidad: ${suggestedQuantity} tn\n💰 Precio sugerido: ${suggestedPrice ? suggestedPrice + ' ' + suggestedPriceUnit : 'A convenir'}\n\n¡Muchas gracias por operar con Agrosys!`;
-
-        import('./whatsapp_connector.ts').then(({ sendWhatsAppMessage }) => {
-          sendWhatsAppMessage(senderPhone, confirmationText).catch(console.error);
-        }).catch(console.error);
       }
+
+      const typeDescription = suggestedType === 'oferta'
+        ? 'oferta de VENTA 🛒'
+        : suggestedType === 'demanda'
+          ? 'demanda de COMPRA 🛍️'
+          : 'mensaje 📝';
+      const confirmationText = `Hola${clientName ? ' ' + clientName : ''}! Registramos tu ${typeDescription} en el sistema:\n\n🌾 Grano: ${suggestedCropType.toUpperCase()}\n📐 Cantidad: ${suggestedQuantity} tn\n💰 Precio sugerido: ${suggestedPrice ? suggestedPrice + ' ' + suggestedPriceUnit : 'A convenir'}\n\n¡Muchas gracias por operar con Agrosys!`;
+
+      import('./whatsapp_connector.ts').then(({ sendWhatsAppMessage }) => {
+        sendWhatsAppMessage(senderPhone, confirmationText).catch(console.error);
+      }).catch(console.error);
+    }
   } catch (e) {
-     console.error('Failed to save WhatsApp alert to database:', e);
+    console.error('Failed to save WhatsApp alert to database:', e);
+    throw e;
   }
 }
 

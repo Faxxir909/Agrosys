@@ -35,7 +35,7 @@ export function Sidebar() {
         onMouseEnter={() => setSidebarHovered(true)}
         onMouseLeave={() => setSidebarHovered(false)}
         className={cn(
-          "bg-[#1e1e1e] border-r border-[#333] flex flex-col h-screen fixed left-0 top-0 z-50 transition-all duration-350 ease-in-out pb-safe",
+          "bg-[#1e1e1e] border-r border-[#333] flex flex-col h-[100dvh] max-w-[85vw] fixed left-0 top-0 z-50 transition-all duration-350 ease-in-out pb-safe pt-[env(safe-area-inset-top)] lg:pt-0",
           sidebarOpen ? "translate-x-0 w-64" : "-translate-x-full lg:translate-x-0",
           isExpanded ? "w-64 shadow-2xl shadow-black/90 border-r border-green-500/20" : "lg:w-20 shadow-none"
         )}
@@ -52,7 +52,7 @@ export function Sidebar() {
             {/* Close Mobile Button */}
             <button 
               onClick={() => setSidebarOpen(false)}
-              className="lg:hidden p-1.5 text-gray-400 hover:text-white rounded-lg hover:bg-white/5 transition-colors"
+              className="lg:hidden w-10 h-10 flex items-center justify-center text-gray-400 hover:text-white rounded-lg hover:bg-white/5 transition-colors"
               title="Cerrar menú"
             >
               <X className="w-5 h-5" />
@@ -66,7 +66,7 @@ export function Sidebar() {
                 onClick={() => setSidebarOpen(false)}
                 className={cn(
                   'flex items-center rounded-lg transition-colors text-sm font-medium',
-                  isExpanded ? 'px-3 py-2.5 gap-3 justify-start' : 'p-2.5 justify-center',
+                  isExpanded ? 'min-h-11 px-3 py-2.5 gap-3 justify-start' : 'min-h-11 p-2.5 justify-center',
                   location.pathname === item.path
                     ? 'bg-green-600/10 text-green-500'
                     : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'
@@ -88,7 +88,7 @@ export function Sidebar() {
               onClick={logout}
               className={cn(
                 'flex items-center rounded-lg text-sm font-medium text-gray-400 hover:bg-red-500/10 hover:text-red-500 transition-colors w-full',
-                isExpanded ? 'px-3 py-2.5 gap-3 justify-start' : 'p-2.5 justify-center'
+                isExpanded ? 'min-h-11 px-3 py-2.5 gap-3 justify-start' : 'min-h-11 p-2.5 justify-center'
               )}
             >
               <LogOut className="w-5 h-5 shrink-0" />

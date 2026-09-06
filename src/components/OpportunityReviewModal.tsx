@@ -98,7 +98,7 @@ export function OpportunityReviewModal({ alert, clients, onClose, onSuccess }: P
 
   return (
     <div className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center p-0 sm:p-5 bg-black/80 backdrop-blur-sm animate-fade-in font-sans">
-      <div className="w-full max-w-4xl max-h-[92vh] overflow-y-auto bg-[#1d1d1d] border border-zinc-700 rounded-t-3xl sm:rounded-2xl shadow-2xl animate-slide-up sm:animate-scale-up pb-safe sm:pb-0">
+      <div className="w-full max-w-4xl max-h-[94dvh] sm:max-h-[92dvh] overflow-y-auto bg-[#1d1d1d] border border-zinc-700 rounded-t-3xl sm:rounded-2xl shadow-2xl animate-slide-up sm:animate-scale-up pb-safe sm:pb-0">
         
         {/* Mobile Grab Bar */}
         <div className="sm:hidden pt-3 pb-1 flex justify-center bg-[#1d1d1d]">
@@ -111,7 +111,7 @@ export function OpportunityReviewModal({ alert, clients, onClose, onSuccess }: P
             <h2 className="text-base sm:text-lg font-black text-white mt-0.5 truncate">Convertir alerta en oportunidad</h2>
             <p className="text-[10px] sm:text-xs text-zinc-400 mt-0.5">Se marcará como procesada al guardar.</p>
           </div>
-          <button type="button" onClick={onClose} className="p-1.5 sm:p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg shrink-0" title="Cerrar">
+          <button type="button" onClick={onClose} className="w-10 h-10 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg shrink-0" title="Cerrar">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -205,8 +205,8 @@ export function OpportunityReviewModal({ alert, clients, onClose, onSuccess }: P
           )}
 
           <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-2 border-t border-zinc-800">
-            <button type="button" onClick={onClose} className="px-4 py-2.5 text-xs font-bold rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white">Cancelar</button>
-            <button type="submit" disabled={!canSave} className="px-5 py-2.5 text-xs font-black rounded-lg bg-green-600 hover:bg-green-700 disabled:bg-zinc-700 disabled:text-zinc-500 text-white flex items-center justify-center gap-2">
+            <button type="button" onClick={onClose} className="min-h-11 px-4 py-2.5 text-xs font-bold rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white">Cancelar</button>
+            <button type="submit" disabled={!canSave} className="min-h-11 px-5 py-2.5 text-xs font-black rounded-lg bg-green-600 hover:bg-green-700 disabled:bg-zinc-700 disabled:text-zinc-500 text-white flex items-center justify-center gap-2">
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
               Guardar oportunidad
             </button>

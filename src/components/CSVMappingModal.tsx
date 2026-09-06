@@ -218,7 +218,7 @@ export function CSVMappingModal({ isOpen, onClose, onImportComplete }: CSVMappin
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/85 backdrop-blur-sm animate-fade-in font-sans">
-      <div className="bg-[#1c1c1c] border border-zinc-800 rounded-t-3xl sm:rounded-3xl max-w-4xl w-full max-h-[92vh] sm:max-h-[90vh] flex flex-col overflow-hidden shadow-2xl animate-slide-up sm:animate-scale-up pb-safe sm:pb-0">
+      <div className="bg-[#1c1c1c] border border-zinc-800 rounded-t-3xl sm:rounded-3xl max-w-4xl w-full max-h-[94dvh] sm:max-h-[90dvh] flex flex-col overflow-hidden shadow-2xl animate-slide-up sm:animate-scale-up pb-safe sm:pb-0">
         
         {/* Mobile Grab Bar */}
         <div className="sm:hidden pt-3 pb-1 flex justify-center bg-zinc-900">
@@ -240,7 +240,7 @@ export function CSVMappingModal({ isOpen, onClose, onImportComplete }: CSVMappin
             type="button" 
             onClick={onClose}
             disabled={isImporting}
-            className="p-1.5 sm:p-2 text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-xl transition cursor-pointer shrink-0"
+            className="w-10 h-10 flex items-center justify-center text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-xl transition cursor-pointer shrink-0"
           >
             <X className="w-5 h-5" />
           </button>
@@ -251,9 +251,9 @@ export function CSVMappingModal({ isOpen, onClose, onImportComplete }: CSVMappin
           
           {/* STEP 1: Select CSV */}
           {step === 1 && (
-            <div className="flex flex-col items-center justify-center p-12 border-2 border-dashed border-zinc-800 rounded-3xl bg-zinc-900/25 space-y-4 hover:border-green-500/50 transition-all duration-300">
-              <div className="p-6 bg-zinc-800/80 rounded-full border border-zinc-700">
-                <FileSpreadsheet className="w-12 h-12 text-zinc-400" />
+            <div className="flex flex-col items-center justify-center p-6 sm:p-12 border-2 border-dashed border-zinc-800 rounded-2xl sm:rounded-3xl bg-zinc-900/25 space-y-4 hover:border-green-500/50 transition-all duration-300">
+              <div className="p-4 sm:p-6 bg-zinc-800/80 rounded-full border border-zinc-700">
+                <FileSpreadsheet className="w-10 h-10 sm:w-12 sm:h-12 text-zinc-400" />
               </div>
               <div className="text-center space-y-1">
                 <h4 className="font-bold text-white text-base">Selecciona un archivo CSV</h4>
@@ -397,11 +397,11 @@ export function CSVMappingModal({ isOpen, onClose, onImportComplete }: CSVMappin
 
         {/* Footer */}
         {step !== 3 && (
-          <div className="p-6 bg-zinc-900 border-t border-zinc-800 flex justify-end gap-3">
+          <div className="p-4 sm:p-6 bg-zinc-900 border-t border-zinc-800 flex flex-col-reverse sm:flex-row justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-bold rounded-xl bg-zinc-800 hover:bg-zinc-750 text-zinc-300 border border-zinc-700 transition cursor-pointer"
+              className="min-h-11 px-4 py-2 text-xs font-bold rounded-xl bg-zinc-800 hover:bg-zinc-750 text-zinc-300 border border-zinc-700 transition cursor-pointer"
             >
               Cancelar
             </button>
@@ -409,7 +409,7 @@ export function CSVMappingModal({ isOpen, onClose, onImportComplete }: CSVMappin
               <button
                 type="button"
                 onClick={startImport}
-                className="px-5 py-2 text-xs font-black rounded-xl bg-green-600 hover:bg-green-700 text-black shadow-lg hover:shadow-green-500/10 active:scale-95 transition flex items-center gap-1.5 uppercase tracking-wider cursor-pointer"
+                className="min-h-11 px-5 py-2 text-xs font-black rounded-xl bg-green-600 hover:bg-green-700 text-black shadow-lg hover:shadow-green-500/10 active:scale-95 transition flex items-center justify-center gap-1.5 uppercase tracking-wider cursor-pointer"
               >
                 <span>Procesar Lote ({rows.length})</span>
                 <Play className="w-3.5 h-3.5 fill-black stroke-none" />

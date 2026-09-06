@@ -159,7 +159,7 @@ export function WhatsappTemplateModal({
 
   return (
     <div className="fixed inset-0 z-[999] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm animate-fade-in font-sans">
-      <div className="bg-[#1e1e1e] border border-zinc-800 rounded-t-3xl sm:rounded-2xl max-w-2xl w-full overflow-hidden shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[90vh] animate-slide-up sm:animate-scale-up pb-safe sm:pb-0">
+      <div className="bg-[#1e1e1e] border border-zinc-800 rounded-t-3xl sm:rounded-2xl max-w-2xl w-full overflow-hidden shadow-2xl flex flex-col max-h-[94dvh] sm:max-h-[90dvh] animate-slide-up sm:animate-scale-up pb-safe sm:pb-0">
         
         {/* Mobile Grab Bar */}
         <div className="sm:hidden pt-3 pb-1 flex justify-center bg-green-600/10">
@@ -179,7 +179,7 @@ export function WhatsappTemplateModal({
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 hover:bg-zinc-800 rounded-xl text-zinc-400 hover:text-white transition-colors cursor-pointer shrink-0"
+            className="w-10 h-10 flex items-center justify-center hover:bg-zinc-800 rounded-xl text-zinc-400 hover:text-white transition-colors cursor-pointer shrink-0"
             title="Cerrar"
           >
             <X className="w-5 h-5" />

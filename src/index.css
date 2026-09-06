@@ -84,6 +84,14 @@
   animation: shake 0.4s ease-in-out both;
 }
 
+html,
+body,
+#root {
+  min-width: 0;
+  width: 100%;
+  min-height: 100%;
+}
+
 body {
   font-family: var(--font-sans);
   background-color: #121212;
@@ -158,6 +166,24 @@ html, body {
   padding-top: max(0.5rem, env(safe-area-inset-top));
 }
 
+.mobile-content-safe {
+  padding-bottom: calc(6rem + env(safe-area-inset-bottom));
+}
+
+.mobile-scroll-row {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
+}
+
+.mobile-scroll-row > * {
+  scroll-snap-align: start;
+}
+
 /* Scrollbar utilities for mobile & desktop */
 .scrollbar-none {
   -ms-overflow-style: none;
@@ -188,7 +214,19 @@ html, body {
 
 /* Mobile touch targets & active feedback */
 @media (max-width: 640px) {
-  input, select, textarea, button {
+  input, select, textarea {
     font-size: 16px; /* Prevents auto-zoom in iOS Safari */
+  }
+
+  button,
+  a,
+  [role="button"] {
+    touch-action: manipulation;
+  }
+}
+
+@media (min-width: 1024px) {
+  .mobile-content-safe {
+    padding-bottom: 2rem;
   }
 }

@@ -9,6 +9,10 @@ export function WhatsappQRSetup() {
     const [loading, setLoading] = useState(false);
     const [resetting, setResetting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [diagnostics, setDiagnostics] = useState<{
+        received: number; saved: number; filtered: number; failed: number;
+        lastReceivedAt: string | null; lastResult: string;
+    } | null>(null);
 
     // WhatsApp dynamic settings states
     const [bypassHeuristic, setBypassHeuristic] = useState(false);
@@ -46,6 +50,7 @@ export function WhatsappQRSetup() {
             const data = await api.whatsapp.status();
             setStatus(data.status);
             setQrCode(data.qr);
+            setDiagnostics(data.diagnostics || null);
         } catch (err) {
             console.warn('Error fetching WA status', err);
             setError(err instanceof Error ? err.message : 'No se pudo consultar WhatsApp.');
@@ -111,7 +116,7 @@ export function WhatsappQRSetup() {
                         <Zap className="w-5 h-5 text-purple-400" /> WhatsApp Personal (Web)
                     </h3>
                     <p className="text-gray-400 text-sm">
-                        Vincula tu WhatsApp personal escaneando el código QR. Los mensajes que recibas en los grupos serán leídos por el bot automáticamente y aparecerán en la lista de alertas (sin usar WhatsApp Business).
+                        Vincula tu WhatsApp personal escaneando el código QR. Las ofertas y demandas de granos recibidas en chats y grupos aparecen en Alertas WhatsApp después de analizarse. Los saludos y las conversaciones generales se filtran.
                     </p>
                     
                     {status === 'disconnected' && (
@@ -157,6 +162,13 @@ export function WhatsappQRSetup() {
                         </div>
                     )}
                     
+                    {diagnostics && (
+                        <div className="rounded-lg border border-gray-600 bg-black/20 p-3 text-sm space-y-2" aria-live="polite">
+                            <p className="text-gray-300">Desde que inició el servidor: {diagnostics.received} recibidos · {diagnostics.saved} guardados · {diagnostics.filtered} filtrados · {diagnostics.failed} con error</p>
+                            <p className="text-gray-300">{diagnostics.lastResult}</p>
+                            {diagnostics.lastReceivedAt && <p className="text-gray-400">Última recepción: {new Date(diagnostics.lastReceivedAt).toLocaleString()}</p>}
+                        </div>
+                    )}
                     {error && <p className="text-red-400 text-sm">{error}</p>}
                 </div>
                 

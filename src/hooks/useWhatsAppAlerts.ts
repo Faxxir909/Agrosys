@@ -57,6 +57,7 @@ export function useWhatsAppAlerts() {
 
     fetchAlerts();
     socket.on('whatsapp-alerts', fetchAlerts);
+    socket.on('connect', fetchAlerts);
 
     const interval = setInterval(() => {
       if (!socket.connected) {
@@ -67,6 +68,7 @@ export function useWhatsAppAlerts() {
     return () => {
       active = false;
       socket.off('whatsapp-alerts', fetchAlerts);
+      socket.off('connect', fetchAlerts);
       clearInterval(interval);
     };
   }, [user]);

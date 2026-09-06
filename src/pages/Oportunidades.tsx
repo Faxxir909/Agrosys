@@ -436,54 +436,55 @@ export function Oportunidades() {
   const totalVolumenDemandas = totalDemandas.reduce((s, o) => s + Number(o.quantity_tn), 0);
 
   return (
-    <div className="space-y-6">
+    <div className="w-full max-w-full min-w-0 space-y-4 sm:space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-black text-white tracking-tight">Pipeline de Operaciones</h1>
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-tight">Pipeline de Operaciones</h1>
           <p className="text-xs text-zinc-500 mt-0.5 font-mono">Motor de oferta, demanda y cruces algorítmicos</p>
         </div>
-        <div className="flex flex-wrap gap-3">
-          <div className="flex items-center gap-2 bg-green-500/8 border border-green-500/20 rounded-xl px-3 py-2">
-            <TrendingUp className="w-3.5 h-3.5 text-green-400 shrink-0" />
-            <div>
-              <p className="text-[9px] text-green-500/70 font-bold uppercase tracking-wider">Oferta Activa</p>
-              <p className="text-sm font-black text-green-400 font-mono">{formatNumber(totalVolumenOfertas)} <span className="text-[10px] font-normal">TN</span></p>
+        <div className="grid grid-cols-3 gap-2 w-full min-w-0 sm:flex sm:flex-wrap sm:w-auto sm:gap-3">
+          <div className="min-w-0 flex items-center gap-2 bg-green-500/8 border border-green-500/20 rounded-xl px-2.5 sm:px-3 py-2 overflow-hidden">
+            <TrendingUp className="hidden sm:block w-3.5 h-3.5 text-green-400 shrink-0" />
+            <div className="min-w-0">
+              <p className="text-[8px] sm:text-[9px] leading-tight text-green-500/70 font-bold uppercase truncate"><span className="sm:hidden">Ofertas</span><span className="hidden sm:inline">Oferta Activa</span></p>
+              <p className="text-[11px] sm:text-sm font-black text-green-400 font-mono truncate">{formatNumber(totalVolumenOfertas)} <span className="text-[9px] sm:text-[10px] font-normal">TN</span></p>
             </div>
           </div>
-          <div className="flex items-center gap-2 bg-blue-500/8 border border-blue-500/20 rounded-xl px-3 py-2">
-            <Scale className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-            <div>
-              <p className="text-[9px] text-blue-500/70 font-bold uppercase tracking-wider">Demanda Activa</p>
-              <p className="text-sm font-black text-blue-400 font-mono">{formatNumber(totalVolumenDemandas)} <span className="text-[10px] font-normal">TN</span></p>
+          <div className="min-w-0 flex items-center gap-2 bg-blue-500/8 border border-blue-500/20 rounded-xl px-2.5 sm:px-3 py-2 overflow-hidden">
+            <Scale className="hidden sm:block w-3.5 h-3.5 text-blue-400 shrink-0" />
+            <div className="min-w-0">
+              <p className="text-[8px] sm:text-[9px] leading-tight text-blue-500/70 font-bold uppercase truncate"><span className="sm:hidden">Demandas</span><span className="hidden sm:inline">Demanda Activa</span></p>
+              <p className="text-[11px] sm:text-sm font-black text-blue-400 font-mono truncate">{formatNumber(totalVolumenDemandas)} <span className="text-[9px] sm:text-[10px] font-normal">TN</span></p>
             </div>
           </div>
-          <div className="flex items-center gap-2 bg-amber-500/8 border border-amber-500/20 rounded-xl px-3 py-2">
-            <BarChart3 className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-            <div>
-              <p className="text-[9px] text-amber-500/70 font-bold uppercase tracking-wider">Valor Negociado</p>
-              <p className="text-sm font-black text-amber-400 font-mono">${formatNumber(Math.round(totalValorOfertas / 1000))}K</p>
+          <div className="min-w-0 flex items-center gap-2 bg-amber-500/8 border border-amber-500/20 rounded-xl px-2.5 sm:px-3 py-2 overflow-hidden">
+            <BarChart3 className="hidden sm:block w-3.5 h-3.5 text-amber-400 shrink-0" />
+            <div className="min-w-0">
+              <p className="text-[8px] sm:text-[9px] leading-tight text-amber-500/70 font-bold uppercase truncate"><span className="sm:hidden">Negociado</span><span className="hidden sm:inline">Valor Negociado</span></p>
+              <p className="text-[11px] sm:text-sm font-black text-amber-400 font-mono truncate">${formatNumber(Math.round(totalValorOfertas / 1000))}K</p>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="bg-[#181818] border border-[#2a2a2a] rounded-2xl p-1.5 flex gap-1 overflow-x-auto scrollbar-none shadow-lg">
+      <div className="bg-[#181818] border border-[#2a2a2a] rounded-2xl p-1.5 grid grid-cols-4 sm:flex gap-1 sm:overflow-x-auto scrollbar-none shadow-lg min-w-0">
         {([
-          { key: 'ofertas',   label: 'Oferta / Venta',     emoji: '🌿', count: totalOfertas.length,   activeClass: 'bg-gradient-to-br from-[#1a2d20] to-[#162219] text-green-400 border border-green-500/25 shadow-green-500/10' },
-          { key: 'demandas',  label: 'Demanda / Compra',   emoji: '🛍️', count: totalDemandas.length,  activeClass: 'bg-gradient-to-br from-[#162333] to-[#101c2a] text-blue-400 border border-blue-500/25 shadow-blue-500/10' },
-          { key: 'whatsapp',  label: 'Alertas WhatsApp',   emoji: '📱', count: alerts.length,          activeClass: 'bg-gradient-to-br from-[#23182e] to-[#1a1123] text-purple-400 border border-purple-500/25 shadow-purple-500/10' },
-          { key: 'matches',   label: 'Cruces',             emoji: '🤝', count: matches.length,         activeClass: 'bg-gradient-to-br from-[#2d2010] to-[#221809] text-amber-400 border border-amber-500/25 shadow-amber-500/10' },
+          { key: 'ofertas',   label: 'Oferta / Venta',     mobileLabel: 'Ofertas',  emoji: '🌿', count: totalOfertas.length,   activeClass: 'bg-gradient-to-br from-[#1a2d20] to-[#162219] text-green-400 border border-green-500/25 shadow-green-500/10' },
+          { key: 'demandas',  label: 'Demanda / Compra',   mobileLabel: 'Compras',  emoji: '🛍️', count: totalDemandas.length,  activeClass: 'bg-gradient-to-br from-[#162333] to-[#101c2a] text-blue-400 border border-blue-500/25 shadow-blue-500/10' },
+          { key: 'whatsapp',  label: 'Alertas WhatsApp',   mobileLabel: 'WhatsApp', emoji: '📱', count: alerts.length,          activeClass: 'bg-gradient-to-br from-[#23182e] to-[#1a1123] text-purple-400 border border-purple-500/25 shadow-purple-500/10' },
+          { key: 'matches',   label: 'Cruces',             mobileLabel: 'Cruces',   emoji: '🤝', count: matches.length,         activeClass: 'bg-gradient-to-br from-[#2d2010] to-[#221809] text-amber-400 border border-amber-500/25 shadow-amber-500/10' },
         ] as const).map(tab => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`flex-1 min-w-[120px] py-2.5 px-3 rounded-xl text-xs font-bold transition-all duration-200 whitespace-nowrap flex items-center justify-center gap-2 cursor-pointer shadow-sm ${
+            className={`flex-1 min-w-0 sm:min-w-[150px] py-2.5 px-1.5 sm:px-3 rounded-xl text-xs font-bold transition-all duration-200 whitespace-nowrap flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer shadow-sm ${
               activeTab === tab.key
                 ? tab.activeClass
                 : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/60'
             }`}
           >
-            <span>{tab.emoji}</span>
+            <span className="hidden sm:inline">{tab.emoji}</span>
+            <span className="sm:hidden text-[9px]">{tab.mobileLabel}</span>
             <span className="hidden sm:inline">{tab.label}</span>
             <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full min-w-[20px] text-center ${
               activeTab === tab.key ? 'bg-white/10' : 'bg-zinc-800'
@@ -577,7 +578,7 @@ export function Oportunidades() {
                       </div>
                     </div>
 
-                    <div className="flex flex-col justify-between items-stretch gap-3 min-w-[290px] border-t xl:border-t-0 xl:border-l border-zinc-800 pt-4 xl:pt-0 xl:pl-6">
+                    <div className="flex flex-col justify-between items-stretch gap-3 min-w-0 xl:min-w-[290px] border-t xl:border-t-0 xl:border-l border-zinc-800 pt-4 xl:pt-0 xl:pl-6">
                       <div className="grid grid-cols-2 gap-2">
                         <label className="text-[9px] uppercase font-bold text-zinc-500">Volumen TN
                           <input type="number" min="1" max={match.overlapQuantity} value={draft.quantity} onChange={e => updateMatchDraft(match, 'quantity', Number(e.target.value))} className="mt-1 w-full bg-zinc-900 border border-zinc-700 rounded px-2 py-1.5 text-xs text-white font-mono" />
@@ -807,7 +808,7 @@ export function Oportunidades() {
 
       <div className="bg-[#191919] border border-[#2a2a2a] rounded-2xl shadow-2xl overflow-hidden flex flex-col">
         <div className="px-4 py-3 border-b border-[#252525] flex flex-col sm:flex-row sm:items-center sm:justify-between bg-[#1e1e1e] gap-3">
-          <div className="flex overflow-x-auto whitespace-nowrap scrollbar-none gap-1.5 pb-1 sm:pb-0">
+          <div className="mobile-scroll-row flex whitespace-nowrap scrollbar-none gap-1.5 pb-1 sm:pb-0">
             {['all', 'soja', 'maiz', 'trigo', 'sorgo', 'girasol'].map(c => {
               const cs = getCropStyle(c);
               return (
@@ -1736,7 +1737,7 @@ function KanbanBoardView({
   setDraggedOverColumn: (col: string | null) => void;
   handleOpenWaModal: (phone: string, id: string, name: string, context?: any) => void;
 }) {
-  const [selectedMobileCol, setSelectedMobileCol] = useState<string>('all');
+  const [selectedMobileCol, setSelectedMobileCol] = useState<string>('abierta');
 
   const columns = [
     { id: 'abierta',                name: '📂 Abiertas',              shortName: '📂 Abiertas', borderClass: 'border-zinc-800 bg-zinc-800/10',       headerClass: 'text-zinc-300' },
@@ -1771,14 +1772,10 @@ function KanbanBoardView({
     });
   };
 
-  const visibleColumns = selectedMobileCol === 'all' 
-    ? columns 
-    : columns.filter(c => c.id === selectedMobileCol);
-
   return (
-    <div className="space-y-3 p-2 sm:p-4">
+    <div className="w-full max-w-full min-w-0 space-y-3 p-2 sm:p-4">
       {/* Mobile Column Switcher Pills */}
-      <div className="sm:hidden flex gap-1.5 overflow-x-auto pb-1.5 scrollbar-none px-1">
+      <div className="mobile-scroll-row sm:hidden flex gap-1.5 pb-1.5 scrollbar-none px-1">
         <button
           type="button"
           onClick={() => setSelectedMobileCol('all')}
@@ -1819,10 +1816,11 @@ function KanbanBoardView({
       </div>
 
       {/* Kanban Columns Grid / Horizontal Slider */}
-      <div className="flex gap-4 overflow-x-auto min-h-[500px] scrollbar-none items-stretch select-none snap-x snap-mandatory pb-4">
-        {visibleColumns.map(col => {
+      <div className="mobile-scroll-row flex gap-4 min-h-[500px] scrollbar-none items-stretch select-none snap-x snap-mandatory pb-4">
+        {columns.map(col => {
           const items = getColumnItems(col.id);
           const isOver = draggedOverColumn === col.id;
+          const isHiddenOnMobile = selectedMobileCol !== 'all' && selectedMobileCol !== col.id;
 
           return (
             <div
@@ -1844,7 +1842,7 @@ function KanbanBoardView({
                   await handleStatusChange(id, col.id);
                 }
               }}
-              className={`w-[85vw] sm:w-76 shrink-0 border rounded-2xl p-3.5 flex flex-col transition-all duration-200 snap-center ${col.borderClass} ${isOver ? 'ring-2 ring-green-500/60 scale-[1.01] border-green-500/50 shadow-lg shadow-green-500/5' : ''}`}
+              className={`w-[calc(100vw-3.75rem)] max-w-[22rem] sm:w-76 shrink-0 border rounded-2xl p-3.5 flex-col transition-all duration-200 snap-start ${isHiddenOnMobile ? 'hidden sm:flex' : 'flex'} ${col.borderClass} ${isOver ? 'ring-2 ring-green-500/60 scale-[1.01] border-green-500/50 shadow-lg shadow-green-500/5' : ''}`}
             >
               <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-zinc-800/60">
                 <h4 className={`font-black text-xs uppercase tracking-widest ${(col as any).headerClass}`}>{col.name}</h4>

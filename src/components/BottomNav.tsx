@@ -25,7 +25,7 @@ export function BottomNav() {
           onClick={() => setIsQuickActionsOpen(false)}
         >
           <div 
-            className="w-full bg-[#1c1c1c] border-t border-[#333] rounded-t-3xl p-5 pb-safe max-h-[85vh] overflow-y-auto space-y-4 animate-slide-up shadow-2xl"
+          className="w-full bg-[#1c1c1c] border-t border-[#333] rounded-t-3xl p-4 sm:p-5 pb-safe max-h-[calc(100dvh-1rem)] overflow-y-auto space-y-4 animate-slide-up shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Grab handle indicator */}
@@ -38,7 +38,7 @@ export function BottomNav() {
               </div>
               <button 
                 onClick={() => setIsQuickActionsOpen(false)}
-                className="p-1.5 text-zinc-400 hover:text-white rounded-full bg-zinc-800/60"
+                className="w-10 h-10 shrink-0 flex items-center justify-center text-zinc-400 hover:text-white rounded-full bg-zinc-800/60"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -137,14 +137,14 @@ export function BottomNav() {
       {/* Main Bottom Bar */}
       <nav 
         aria-label="Navegación Móvil"
-        className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#161616]/95 backdrop-blur-xl border-t border-[#2d2d2d] px-3 py-1.5 pb-safe shadow-2xl"
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-40 min-h-[68px] bg-[#161616]/95 backdrop-blur-xl border-t border-[#2d2d2d] px-2.5 py-1.5 pb-safe shadow-2xl"
       >
         <div className="flex items-center justify-between max-w-md mx-auto">
           {/* Dashboard */}
           <Link
             to="/"
             className={cn(
-              "flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-xl transition-all duration-200 relative active:scale-95",
+              "flex flex-col items-center justify-center flex-1 min-w-0 min-h-12 py-1 px-1 rounded-xl transition-all duration-200 relative active:scale-95",
               location.pathname === '/' ? "text-green-400 font-bold" : "text-zinc-400 hover:text-zinc-200"
             )}
           >
@@ -159,7 +159,7 @@ export function BottomNav() {
           <Link
             to="/oportunidades"
             className={cn(
-              "flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-xl transition-all duration-200 relative active:scale-95",
+              "flex flex-col items-center justify-center flex-1 min-w-0 min-h-12 py-1 px-1 rounded-xl transition-all duration-200 relative active:scale-95",
               location.pathname === '/oportunidades' ? "text-amber-400 font-bold" : "text-zinc-400 hover:text-zinc-200"
             )}
           >
@@ -182,7 +182,7 @@ export function BottomNav() {
             <button
               type="button"
               onClick={() => setIsQuickActionsOpen(true)}
-              className="w-11 h-11 bg-gradient-to-tr from-green-600 via-emerald-500 to-green-400 text-black rounded-full flex items-center justify-center shadow-lg shadow-green-950/40 border border-green-300/40 active:scale-90 transition-transform cursor-pointer"
+              className="w-12 h-12 bg-gradient-to-tr from-green-600 via-emerald-500 to-green-400 text-black rounded-full flex items-center justify-center shadow-lg shadow-green-950/40 border border-green-300/40 active:scale-90 transition-transform cursor-pointer"
               title="Nueva Operación Rápida"
             >
               <Plus className="w-6 h-6 stroke-[2.5]" />
@@ -193,7 +193,7 @@ export function BottomNav() {
           <Link
             to="/clientes"
             className={cn(
-              "flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-xl transition-all duration-200 relative active:scale-95",
+              "flex flex-col items-center justify-center flex-1 min-w-0 min-h-12 py-1 px-1 rounded-xl transition-all duration-200 relative active:scale-95",
               location.pathname === '/clientes' ? "text-blue-400 font-bold" : "text-zinc-400 hover:text-zinc-200"
             )}
           >

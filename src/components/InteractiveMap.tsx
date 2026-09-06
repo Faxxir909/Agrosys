@@ -344,10 +344,10 @@ export function InteractiveMap() {
   };
 
   return (
-    <div className="bg-[#1e1e1e] border border-[#333] rounded-2xl sm:rounded-3xl overflow-hidden shadow-xl flex flex-col h-[360px] sm:h-[480px]">
+    <div className="w-full max-w-full min-w-0 bg-[#1e1e1e] border border-[#333] rounded-2xl sm:rounded-3xl overflow-hidden shadow-xl flex flex-col h-[360px] sm:h-[480px]">
       
       {/* Map Control Bar Panel */}
-      <div className="bg-gradient-to-r from-[#212121] to-[#252525] border-b border-[#333] px-3.5 py-2.5 sm:px-5 sm:py-3.5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+      <div className="min-w-0 bg-gradient-to-r from-[#212121] to-[#252525] border-b border-[#333] px-3.5 py-2.5 sm:px-5 sm:py-3.5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
         
         <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
           <div className="p-1.5 sm:p-2 bg-blue-500/10 border border-blue-500/20 rounded-xl shrink-0">
@@ -355,14 +355,14 @@ export function InteractiveMap() {
           </div>
           <div className="min-w-0">
             <h3 className="text-xs sm:text-sm font-black text-white tracking-tight truncate flex items-center gap-1.5">
-              Geolocalización Termal AgroSys
+              Geolocalización Territorial AgroSys
             </h3>
             <p className="text-[9px] sm:text-[10px] text-zinc-500 font-mono truncate">{clients.length} clientes · {opportunities.length} operaciones</p>
           </div>
         </div>
 
         {/* Filter Badges Control Row */}
-        <div className="flex overflow-x-auto scrollbar-none items-center gap-1.5 pb-0.5 sm:pb-0">
+        <div className="mobile-scroll-row flex scrollbar-none items-center gap-1.5 pb-0.5 sm:pb-0 sm:w-auto">
           {[
             { id: 'all', label: 'Todo', color: 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300' },
             { id: 'clients', label: 'Clientes', color: 'bg-blue-900/20 hover:bg-blue-900/35 border border-blue-500/20 text-blue-400' },
@@ -384,7 +384,7 @@ export function InteractiveMap() {
           
           <button
             onClick={focusMainZone}
-            className="p-1 sm:p-1.5 bg-[#2a2a2a] hover:bg-[#343434] border border-zinc-700/60 rounded-xl text-zinc-400 hover:text-white transition-all cursor-pointer shrink-0"
+            className="w-9 h-9 sm:w-auto sm:h-auto sm:p-1.5 flex items-center justify-center bg-[#2a2a2a] hover:bg-[#343434] border border-zinc-700/60 rounded-xl text-zinc-400 hover:text-white transition-all cursor-pointer shrink-0"
             title="Centrar en Zona Núcleo"
           >
             <Focus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />

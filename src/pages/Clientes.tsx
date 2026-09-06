@@ -796,27 +796,27 @@ export function Clientes() {
   );
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-12">
+    <div className="w-full max-w-7xl min-w-0 mx-auto pb-12 space-y-4 sm:space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl font-bold text-white tracking-tight">
+          <div className="flex flex-wrap items-center gap-3 min-w-0">
+            <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight leading-tight">
               {mainView === 'clientes' ? 'Directorio de Clientes' : 'Agenda de la Cooperativa'}
             </h1>
             
             {/* View toggle tabs */}
-            <div className="flex bg-[#2c2c2c]/40 border border-[#3c3c3c] p-0.5 rounded-lg text-xs font-semibold">
+            <div className="flex w-full sm:w-auto bg-[#2c2c2c]/40 border border-[#3c3c3c] p-0.5 rounded-lg text-xs font-semibold">
               <button
                 type="button"
                 onClick={() => { setMainView('clientes'); handleBackToList(); }}
-                className={`px-3 py-1.5 rounded-md transition-all ${mainView === 'clientes' ? 'bg-[#22c55e] text-black font-extrabold shadow-sm' : 'text-gray-400 hover:text-white'}`}
+                className={`flex-1 sm:flex-none min-h-10 px-3 py-1.5 rounded-md transition-all ${mainView === 'clientes' ? 'bg-[#22c55e] text-black font-extrabold shadow-sm' : 'text-gray-400 hover:text-white'}`}
               >
                 📋 Productores
               </button>
               <button
                 type="button"
                 onClick={() => { setMainView('agenda'); handleBackToList(); }}
-                className={`px-3 py-1.5 rounded-md transition-all flex items-center gap-1.5 ${mainView === 'agenda' ? 'bg-[#22c55e] text-black font-extrabold shadow-sm' : 'text-gray-400 hover:text-white'}`}
+                className={`flex-1 sm:flex-none min-h-10 px-3 py-1.5 rounded-md transition-all flex items-center justify-center gap-1.5 ${mainView === 'agenda' ? 'bg-[#22c55e] text-black font-extrabold shadow-sm' : 'text-gray-400 hover:text-white'}`}
               >
                 📅 Agenda General
                 {allTasks.filter(t => t.status === 'pendiente').length > 0 && (
@@ -833,11 +833,11 @@ export function Clientes() {
         </div>
         
         {!viewingCustomerDetails && !isAddingNewCustomer && !isEditingCustomer && mainView === 'clientes' && (
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 sm:gap-3 w-full md:w-auto">
             {/* Importar CSV */}
             <button 
               onClick={() => setIsCsvModalOpen(true)}
-              className="bg-[#222] border border-[#333] hover:border-[#444] text-gray-300 hover:text-white px-3.5 py-2 rounded-lg flex items-center justify-center gap-2 text-xs font-semibold transition-all cursor-pointer"
+              className="w-full min-h-11 bg-[#222] border border-[#333] hover:border-[#444] text-gray-300 hover:text-white px-3.5 py-2 rounded-lg flex items-center justify-center gap-2 text-xs font-semibold transition-all cursor-pointer"
             >
               <FileUp className="w-4 h-4 text-green-500" />
               <span>Importar CSV</span>
@@ -846,10 +846,10 @@ export function Clientes() {
             {/* Exportar CSV */}
             <button 
               onClick={handleExportCSV}
-              className="bg-[#222] border border-[#333] hover:border-[#444] text-gray-300 hover:text-white px-3.5 py-2 rounded-lg flex items-center justify-center gap-2 text-xs font-semibold transition-all"
+              className="w-full min-h-11 bg-[#222] border border-[#333] hover:border-[#444] text-gray-300 hover:text-white px-3.5 py-2 rounded-lg flex items-center justify-center gap-2 text-xs font-semibold transition-all"
             >
               <FileDown className="w-4 h-4 text-green-500" />
-              <span>Exportar Excel CSV</span>
+              <span>Exportar CSV</span>
             </button>
 
             <button 
@@ -857,7 +857,7 @@ export function Clientes() {
                 setFormData(defaultFormData);
                 setIsAddingNewCustomer(true);
               }}
-              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 font-medium text-xs transition-colors shadow-sm"
+              className="col-span-2 sm:col-span-1 w-full min-h-11 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 font-medium text-xs transition-colors shadow-sm"
             >
               <Plus className="w-4.5 h-4.5" />
               <span>Nuevo Cliente</span>
@@ -867,10 +867,10 @@ export function Clientes() {
       </div>
 
       {(viewingCustomerDetails || isAddingNewCustomer || isEditingCustomer) ? (
-        <div className="bg-[#1e1e1e] border border-[#333] rounded-2xl p-6 shadow-sm overflow-hidden relative">
+        <div className="bg-[#1e1e1e] border border-[#333] rounded-2xl p-4 sm:p-6 shadow-sm overflow-hidden relative min-w-0">
           <button 
             onClick={handleBackToList}
-            className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors p-2 rounded-lg hover:bg-white/5"
+            className="absolute top-3 right-3 sm:top-4 sm:right-4 w-10 h-10 flex items-center justify-center text-gray-400 hover:text-white transition-colors rounded-lg hover:bg-white/5"
           >
             <X className="w-5 h-5" />
           </button>
@@ -880,8 +880,8 @@ export function Clientes() {
               
               {/* Header con Perfil */}
               <div className="flex flex-col md:flex-row md:items-start justify-between border-b border-[#333] pb-6 gap-4">
-                <div>
-                  <h2 className="text-2xl font-bold text-white mb-2 flex items-center gap-2.5">
+                <div className="min-w-0 pr-10 md:pr-0">
+                  <h2 className="text-xl sm:text-2xl font-bold text-white mb-2 flex flex-wrap items-center gap-2.5 break-words">
                     {selectedCustomer.name}
                     {selectedCustomer.status === 'activo' && (
                       <span className="w-3 h-3 rounded-full bg-green-500 animate-pulse" title="Estado: Activo"></span>
@@ -919,7 +919,7 @@ export function Clientes() {
               </div>
 
               {/* Botones de Navegación de Solapas (Tabs) */}
-              <div className="flex overflow-x-auto scrollbar-none border-b border-[#333] gap-1.5 p-1 bg-[#161616] rounded-xl max-w-xl">
+              <div className="mobile-scroll-row flex scrollbar-none border-b border-[#333] gap-1.5 p-1 bg-[#161616] rounded-xl max-w-xl">
                 <button 
                   onClick={() => setActiveTab('ficha')}
                   className={`flex-1 min-w-[100px] py-2 px-2.5 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer ${activeTab === 'ficha' ? 'bg-[#2a2a2a] text-white font-bold shadow' : 'text-gray-400 hover:text-white'}`}
@@ -962,10 +962,10 @@ export function Clientes() {
                   
                   <div className="space-y-4">
                     <h3 className="text-sm font-bold uppercase tracking-wider text-gray-400 flex items-center gap-2"><User className="w-4 h-4 text-green-500" /> Datos de Contacto</h3>
-                    <div className="bg-[#181818] border border-[#333] p-5 rounded-xl space-y-3 text-sm">
-                      <div className="flex justify-between items-center"><span className="text-gray-500">Teléfono:</span> <span className="text-white font-medium select-all">{selectedCustomer.phone || 'No registrado'}</span></div>
-                      <div className="flex justify-between items-center"><span className="text-gray-500">Email:</span> <span className="text-white font-medium select-all text-xs line-clamp-1">{selectedCustomer.email || 'No registrado'}</span></div>
-                      <div className="flex justify-between items-center"><span className="text-gray-500">CUIT:</span> <span className="text-white font-mono select-all text-xs">{selectedCustomer.cuit || 'N/A'}</span></div>
+                    <div className="bg-[#181818] border border-[#333] p-4 sm:p-5 rounded-xl space-y-3 text-sm min-w-0">
+                      <div className="flex justify-between items-center gap-3"><span className="text-gray-500 shrink-0">Teléfono:</span> <span className="text-white font-medium select-all text-right break-all">{selectedCustomer.phone || 'No registrado'}</span></div>
+                      <div className="flex justify-between items-center gap-3 min-w-0"><span className="text-gray-500 shrink-0">Email:</span> <span className="text-white font-medium select-all text-xs text-right break-all">{selectedCustomer.email || 'No registrado'}</span></div>
+                      <div className="flex justify-between items-center gap-3"><span className="text-gray-500 shrink-0">CUIT:</span> <span className="text-white font-mono select-all text-xs text-right break-all">{selectedCustomer.cuit || 'N/A'}</span></div>
                       <div className="flex justify-between items-center"><span className="text-gray-500">Estado CRM:</span> <span className="text-white font-medium capitalize bg-green-500/10 text-green-400 border border-green-500/20 px-2 py-0.5 rounded-md text-xs">{selectedCustomer.status || 'Activo'}</span></div>
                       <div className="flex justify-between items-center pt-2.5 border-t border-[#2a2a2a]"><span className="text-gray-500">Relevado por Agente:</span> <span className="text-white font-semibold">{selectedCustomer.relevado || 'No'}</span></div>
                     </div>
@@ -2279,7 +2279,7 @@ export function Clientes() {
           </div>
 
           {/* 2. SECCIÓN: COMPREHENSIVE BENTO DE FILTROS & ORDENAMIENTOS */}
-          <div className="bg-[#1a1a1a] border border-[#333] rounded-2xl p-5 space-y-4">
+          <div className="bg-[#1a1a1a] border border-[#333] rounded-2xl p-4 sm:p-5 space-y-4 min-w-0">
             <div 
               className="flex items-center justify-between pb-2 border-b border-[#2b2b2b] cursor-pointer md:cursor-default"
               onClick={() => {
@@ -2494,7 +2494,7 @@ export function Clientes() {
                 <div 
                   key={customer.id} 
                   onClick={() => { setSelectedCustomer(customer); setViewingCustomerDetails(true); }}
-                  className="bg-[#1a1a1a] border border-[#2d2d2d] hover:border-green-500/50 rounded-2xl p-5 cursor-pointer transition-all hover:-translate-y-1.5 duration-300 hover:shadow-xl hover:shadow-green-950/5 relative group overflow-hidden"
+                  className="bg-[#1a1a1a] border border-[#2d2d2d] hover:border-green-500/50 rounded-2xl p-4 sm:p-5 cursor-pointer transition-all lg:hover:-translate-y-1.5 duration-300 hover:shadow-xl hover:shadow-green-950/5 relative group overflow-hidden"
                 >
                   {/* Gradiente sutil superior */}
                   <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-green-500/10 to-transparent group-hover:via-green-500/40 transition-all duration-300" />
@@ -2587,7 +2587,7 @@ export function Clientes() {
                   </div>
 
                   {/* Acciones de Flote / HOVER */}
-                  <div className="absolute right-4 top-4 lg:opacity-0 lg:group-hover:opacity-100 opacity-100 transition-all duration-300 flex items-center gap-1.5 bg-[#202020] border border-[#333] p-1.5 rounded-lg shadow-xl" onClick={(e) => e.stopPropagation()}>
+                  <div className="mt-3 flex items-center justify-end gap-1.5 lg:absolute lg:right-4 lg:top-4 lg:mt-0 lg:opacity-0 lg:group-hover:opacity-100 transition-all duration-300" onClick={(e) => e.stopPropagation()}>
                     {customer.phone && (
                       <>
                         <button 
@@ -2595,7 +2595,7 @@ export function Clientes() {
                             e.stopPropagation();
                             handleOpenWaModal(customer.phone, customer.id, customer.name);
                           }}
-                          className="p-1.5 bg-emerald-600/10 hover:bg-emerald-600 text-emerald-400 hover:text-white rounded-md transition-all duration-150 cursor-pointer"
+                          className="w-9 h-9 flex items-center justify-center bg-emerald-600/10 hover:bg-emerald-600 text-emerald-400 hover:text-white rounded-lg border border-emerald-500/15 transition-all duration-150 cursor-pointer"
                           title="Enviar WhatsApp con Plantilla"
                         >
                           <MessageSquare className="w-3.5 h-3.5" />
@@ -2603,7 +2603,7 @@ export function Clientes() {
                         <a 
                           href={`tel:${customer.phone}`}
                           onClick={(e) => e.stopPropagation()}
-                          className="p-1.5 bg-blue-600/10 hover:bg-blue-600 text-blue-400 hover:text-white rounded-md transition-all duration-150"
+                          className="w-9 h-9 flex items-center justify-center bg-blue-600/10 hover:bg-blue-600 text-blue-400 hover:text-white rounded-lg border border-blue-500/15 transition-all duration-150"
                           title={`Llamar: ${customer.phone}`}
                         >
                           <Phone className="w-3.5 h-3.5" />
@@ -2614,7 +2614,7 @@ export function Clientes() {
                       <a 
                         href={`mailto:${customer.email}`}
                         onClick={(e) => e.stopPropagation()}
-                        className="p-1.5 bg-indigo-600/10 hover:bg-indigo-600 text-indigo-400 hover:text-white rounded-md transition-all duration-150"
+                        className="w-9 h-9 flex items-center justify-center bg-indigo-600/10 hover:bg-indigo-600 text-indigo-400 hover:text-white rounded-lg border border-indigo-500/15 transition-all duration-150"
                         title={`Escribir a: ${customer.email}`}
                       >
                         <Mail className="w-3.5 h-3.5" />

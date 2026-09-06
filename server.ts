@@ -349,7 +349,7 @@ Devuelve un JSON estrictamente válido con el siguiente formato:
 Texto a analizar: "${text}"`;
         
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.5-flash',
       contents: prompt,
       config: {
         responseMimeType: 'application/json'
@@ -441,7 +441,7 @@ Devuelve un JSON estrictamente válido con el siguiente formato:
 }`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.5-flash',
       contents: [
         {
           inlineData: {
@@ -713,7 +713,7 @@ Devuelve un objeto JSON estrictamente válido con los campos:
 }`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.5-flash',
       contents: googleSearchPrompt,
       config: {
         tools: [{ googleSearch: {} }]

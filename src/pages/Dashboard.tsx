@@ -134,7 +134,7 @@ export function Dashboard() {
     setSendingWa(true);
     try {
       const netPrice = match.offer.price_usd - Number(estimatedFreight);
-      const msg = `Hola ${seller.name}, te cotizo un cruce para la venta de ${formatNumber(match.overlapQuantity)} TN de ${match.cropType.toUpperCase()} a USD ${netPrice}/tn Netos (Flete estimado: USD ${estimatedFreight}/tn, Plazo: ${paymentTerms}, Calidad: ${grainQuality}). Confirma si te sirve. Mesa de AgroSys.`;
+      const msg = `Hola ${seller.name}, te cotizo un cruce para la venta de ${formatNumber(match.overlapQuantity)} TN de ${match.cropType.toUpperCase()} a USD ${netPrice}/tn Netos (Flete estimado: USD ${estimatedFreight}/tn, Plazo: ${paymentTerms}, Calidad: ${grainQuality}). Confirma si te sirve. AgroSys.`;
       
       await api.whatsapp.sendMessage({
         phone: seller.phone,
@@ -371,18 +371,18 @@ export function Dashboard() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="w-full max-w-full min-w-0 space-y-4 sm:space-y-6">
       {/* Header con indicadores de estado de Mercado */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-zinc-900 to-[#1e1e1e] border border-[#333] p-4 sm:p-5 rounded-2xl shadow-lg">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2">
-            <span>🌾</span> AgroSys Terminal <span className="text-xs bg-green-500/10 border border-green-500/25 px-2 py-0.5 rounded text-green-400 font-mono">EN VIVO</span>
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight flex flex-wrap items-center gap-2 leading-tight">
+            <span>🌾</span> <span>AgroSys Terminal</span> <span className="shrink-0 text-[10px] sm:text-xs bg-green-500/10 border border-green-500/25 px-2 py-0.5 rounded text-green-400 font-mono">EN VIVO</span>
           </h1>
           <p className="text-xs sm:text-sm text-gray-400 mt-1">Sala de intermediación, operaciones confirmadas y cotizaciones arbitrales</p>
         </div>
         <div className="flex items-center gap-2 text-xs text-gray-400 font-mono bg-zinc-800/50 border border-zinc-700/55 px-3.5 py-2 rounded-xl self-start sm:self-auto">
           <span className="w-2 h-2 rounded-full bg-green-400 animate-ping inline-block mr-1"></span>
-          <span>Broker: Mesa Activa</span>
+          <span>Sistema conectado</span>
         </div>
       </div>
 
@@ -390,7 +390,8 @@ export function Dashboard() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         {[
           { 
-            label: 'Vol. Ofertado', 
+            label: 'Vol. Ofertado',
+            mobileLabel: 'Ofertas',
             val: `${formatNumber(volOfertas)} TN`, 
             sub: `${ofertasAbiertas.length} ofertas activas`,
             icon: ArrowUpRight, 
@@ -399,7 +400,8 @@ export function Dashboard() {
             border: 'border-green-500/10'
           },
           { 
-            label: 'Vol. Demandado', 
+            label: 'Vol. Demandado',
+            mobileLabel: 'Demandas',
             val: `${formatNumber(volDemandas)} TN`, 
             sub: `${demandasAbiertas.length} demandas activas`,
             icon: ArrowDownRight, 
@@ -408,7 +410,8 @@ export function Dashboard() {
             border: 'border-blue-500/10'
           },
           { 
-            label: 'Boletos Cerrados', 
+            label: 'Boletos Cerrados',
+            mobileLabel: 'Boletos',
             val: `${totalClosedDeals} deals`, 
             sub: `${formatNumber(volCerrado)} TN cerradas`,
             icon: Award, 
@@ -417,7 +420,8 @@ export function Dashboard() {
             border: 'border-purple-500/10'
           },
           { 
-            label: 'Honorarios Est.', 
+            label: 'Honorarios Est.',
+            mobileLabel: 'Honorarios',
             val: formatCurrency(honorariosTotales), 
             sub: 'Comisiones cobradas',
             icon: DollarSign, 
@@ -429,7 +433,7 @@ export function Dashboard() {
           <div key={i} className={`bg-[#1e1e1e] border ${kpi.border} p-3 sm:p-5 rounded-2xl shadow-md transition-all hover:scale-[1.01]`}>
             <div className="flex justify-between items-start">
               <div className="min-w-0 flex-1 mr-1.5">
-                <p className="text-[10px] sm:text-xs font-bold text-gray-400 uppercase tracking-wider mb-1 truncate">{kpi.label}</p>
+                <p className="text-[10px] sm:text-xs font-bold text-gray-400 uppercase tracking-wider mb-1 truncate"><span className="sm:hidden">{kpi.mobileLabel}</span><span className="hidden sm:inline">{kpi.label}</span></p>
                 <div className="text-base sm:text-2xl lg:text-3xl font-black text-white tracking-tight truncate">{kpi.val}</div>
                 <p className="text-[9px] sm:text-xs text-gray-400 mt-1 font-mono truncate">{kpi.sub}</p>
               </div>
