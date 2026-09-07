@@ -137,44 +137,44 @@ export function BottomNav() {
       {/* Main Bottom Bar */}
       <nav 
         aria-label="Navegación Móvil"
-        className="lg:hidden fixed bottom-0 left-0 right-0 z-40 min-h-[68px] bg-[#161616]/95 backdrop-blur-xl border-t border-[#2d2d2d] px-2.5 py-1.5 pb-safe shadow-2xl"
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-40 min-h-[64px] bg-[#121212]/92 backdrop-blur-2xl border-t border-white/[0.08] px-3 py-1 pb-safe shadow-2xl"
       >
         <div className="flex items-center justify-between max-w-md mx-auto">
           {/* Dashboard */}
           <Link
             to="/"
             className={cn(
-              "flex flex-col items-center justify-center flex-1 min-w-0 min-h-12 py-1 px-1 rounded-xl transition-all duration-200 relative active:scale-95",
+              "flex flex-col items-center justify-center flex-1 min-w-0 min-h-[50px] py-1 px-1 rounded-2xl transition-all duration-200 relative active:scale-95 select-none",
               location.pathname === '/' ? "text-green-400 font-bold" : "text-zinc-400 hover:text-zinc-200"
             )}
           >
             {location.pathname === '/' && (
-              <span className="absolute inset-x-2 inset-y-0.5 bg-green-500/10 rounded-xl border border-green-500/20 -z-10 animate-scale-up" />
+              <span className="absolute inset-x-1.5 inset-y-0.5 bg-green-500/12 rounded-xl border border-green-500/25 -z-10 animate-scale-up" />
             )}
-            <LayoutDashboard className={cn("w-5 h-5 transition-transform", location.pathname === '/' ? "scale-110 text-green-400" : "text-zinc-400")} />
-            <span className="text-[10px] mt-1 tracking-tight">Terminal</span>
+            <LayoutDashboard className={cn("w-5 h-5 transition-transform duration-200", location.pathname === '/' ? "scale-110 text-green-400" : "text-zinc-400")} />
+            <span className="text-[10px] mt-1 tracking-tight font-medium">Terminal</span>
           </Link>
 
           {/* Oportunidades */}
           <Link
             to="/oportunidades"
             className={cn(
-              "flex flex-col items-center justify-center flex-1 min-w-0 min-h-12 py-1 px-1 rounded-xl transition-all duration-200 relative active:scale-95",
+              "flex flex-col items-center justify-center flex-1 min-w-0 min-h-[50px] py-1 px-1 rounded-2xl transition-all duration-200 relative active:scale-95 select-none",
               location.pathname === '/oportunidades' ? "text-amber-400 font-bold" : "text-zinc-400 hover:text-zinc-200"
             )}
           >
             {location.pathname === '/oportunidades' && (
-              <span className="absolute inset-x-2 inset-y-0.5 bg-amber-500/10 rounded-xl border border-amber-500/20 -z-10 animate-scale-up" />
+              <span className="absolute inset-x-1.5 inset-y-0.5 bg-amber-500/12 rounded-xl border border-amber-500/25 -z-10 animate-scale-up" />
             )}
             <div className="relative">
-              <Briefcase className={cn("w-5 h-5 transition-transform", location.pathname === '/oportunidades' ? "scale-110 text-amber-400" : "text-zinc-400")} />
+              <Briefcase className={cn("w-5 h-5 transition-transform duration-200", location.pathname === '/oportunidades' ? "scale-110 text-amber-400" : "text-zinc-400")} />
               {newAlertsCount > 0 && (
-                <span className="absolute -top-1.5 -right-2.5 bg-purple-600 text-white text-[9px] font-black px-1.5 py-0.2 rounded-full ring-2 ring-[#161616] animate-pulse">
+                <span className="absolute -top-1.5 -right-2.5 bg-purple-600 text-white text-[9px] font-black px-1.5 py-0.2 rounded-full ring-2 ring-[#121212] animate-pulse">
                   {newAlertsCount}
                 </span>
               )}
             </div>
-            <span className="text-[10px] mt-1 tracking-tight">Negocios</span>
+            <span className="text-[10px] mt-1 tracking-tight font-medium">Negocios</span>
           </Link>
 
           {/* Central Quick Action Button (FAB) */}
@@ -182,10 +182,10 @@ export function BottomNav() {
             <button
               type="button"
               onClick={() => setIsQuickActionsOpen(true)}
-              className="w-12 h-12 bg-gradient-to-tr from-green-600 via-emerald-500 to-green-400 text-black rounded-full flex items-center justify-center shadow-lg shadow-green-950/40 border border-green-300/40 active:scale-90 transition-transform cursor-pointer"
+              className="w-12 h-12 bg-gradient-to-tr from-green-600 via-emerald-500 to-green-400 text-black rounded-full flex items-center justify-center shadow-lg shadow-green-950/60 border border-green-300/50 active:scale-90 transition-transform cursor-pointer"
               title="Nueva Operación Rápida"
             >
-              <Plus className="w-6 h-6 stroke-[2.5]" />
+              <Plus className="w-6 h-6 stroke-[2.8]" />
             </button>
           </div>
 
@@ -193,15 +193,15 @@ export function BottomNav() {
           <Link
             to="/clientes"
             className={cn(
-              "flex flex-col items-center justify-center flex-1 min-w-0 min-h-12 py-1 px-1 rounded-xl transition-all duration-200 relative active:scale-95",
+              "flex flex-col items-center justify-center flex-1 min-w-0 min-h-[50px] py-1 px-1 rounded-2xl transition-all duration-200 relative active:scale-95 select-none",
               location.pathname === '/clientes' ? "text-blue-400 font-bold" : "text-zinc-400 hover:text-zinc-200"
             )}
           >
             {location.pathname === '/clientes' && (
-              <span className="absolute inset-x-2 inset-y-0.5 bg-blue-500/10 rounded-xl border border-blue-500/20 -z-10 animate-scale-up" />
+              <span className="absolute inset-x-1.5 inset-y-0.5 bg-blue-500/12 rounded-xl border border-blue-500/25 -z-10 animate-scale-up" />
             )}
-            <Users className={cn("w-5 h-5 transition-transform", location.pathname === '/clientes' ? "scale-110 text-blue-400" : "text-zinc-400")} />
-            <span className="text-[10px] mt-1 tracking-tight">Productores</span>
+            <Users className={cn("w-5 h-5 transition-transform duration-200", location.pathname === '/clientes' ? "scale-110 text-blue-400" : "text-zinc-400")} />
+            <span className="text-[10px] mt-1 tracking-tight font-medium">Productores</span>
           </Link>
         </div>
       </nav>

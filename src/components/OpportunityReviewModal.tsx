@@ -204,9 +204,9 @@ export function OpportunityReviewModal({ alert, clients, onClose, onSuccess }: P
             </div>
           )}
 
-          <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-2 border-t border-zinc-800">
-            <button type="button" onClick={onClose} className="min-h-11 px-4 py-2.5 text-xs font-bold rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white">Cancelar</button>
-            <button type="submit" disabled={!canSave} className="min-h-11 px-5 py-2.5 text-xs font-black rounded-lg bg-green-600 hover:bg-green-700 disabled:bg-zinc-700 disabled:text-zinc-500 text-white flex items-center justify-center gap-2">
+          <div className="sticky bottom-0 bg-[#1d1d1d]/95 backdrop-blur-md flex flex-col-reverse sm:flex-row justify-end gap-3 pt-3 pb-safe sm:pb-0 border-t border-zinc-800 -mx-4 sm:-mx-5 px-4 sm:px-5">
+            <button type="button" onClick={onClose} className="min-h-11 px-4 py-2.5 text-xs font-bold rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white transition-all active:scale-95 cursor-pointer">Cancelar</button>
+            <button type="submit" disabled={!canSave} className="min-h-11 px-5 py-2.5 text-xs font-black rounded-xl bg-green-600 hover:bg-green-700 disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed text-white flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95 cursor-pointer">
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
               Guardar oportunidad
             </button>

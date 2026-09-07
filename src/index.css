@@ -156,6 +156,38 @@ html, body {
   overflow-x: hidden;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
+  scroll-behavior: smooth;
+}
+
+/* Tabular numbers for financial and tonnage data */
+.tabular-nums,
+.font-mono {
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* Glassmorphism & Card Design Tokens */
+.card-glass {
+  background: rgba(30, 30, 30, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.card-glass-subtle {
+  background: rgba(24, 24, 27, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.card-glass-hover {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-glass-hover:hover {
+  transform: translateY(-2px);
+  border-color: rgba(34, 197, 94, 0.35);
+  box-shadow: 0 12px 28px -6px rgba(0, 0, 0, 0.6), 0 0 16px -2px rgba(34, 197, 94, 0.08);
 }
 
 .pb-safe {
@@ -167,7 +199,7 @@ html, body {
 }
 
 .mobile-content-safe {
-  padding-bottom: calc(6rem + env(safe-area-inset-bottom));
+  padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
 }
 
 .mobile-scroll-row {
@@ -195,27 +227,27 @@ html, body {
 
 .scrollbar-thin {
   scrollbar-width: thin;
-  scrollbar-color: #333333 transparent;
+  scrollbar-color: #383838 transparent;
 }
 .scrollbar-thin::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 4px;
+  height: 4px;
 }
 .scrollbar-thin::-webkit-scrollbar-track {
   background: transparent;
 }
 .scrollbar-thin::-webkit-scrollbar-thumb {
   background: #333333;
-  border-radius: 4px;
+  border-radius: 9999px;
 }
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  background: #555555;
+  background: #52525b;
 }
 
 /* Mobile touch targets & active feedback */
 @media (max-width: 640px) {
   input, select, textarea {
-    font-size: 16px; /* Prevents auto-zoom in iOS Safari */
+    font-size: 16px !important; /* Prevents auto-zoom in iOS Safari */
   }
 
   button,

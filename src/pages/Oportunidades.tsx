@@ -443,51 +443,51 @@ export function Oportunidades() {
           <p className="text-xs text-zinc-500 mt-0.5 font-mono">Motor de oferta, demanda y cruces algorítmicos</p>
         </div>
         <div className="grid grid-cols-3 gap-2 w-full min-w-0 sm:flex sm:flex-wrap sm:w-auto sm:gap-3">
-          <div className="min-w-0 flex items-center gap-2 bg-green-500/8 border border-green-500/20 rounded-xl px-2.5 sm:px-3 py-2 overflow-hidden">
-            <TrendingUp className="hidden sm:block w-3.5 h-3.5 text-green-400 shrink-0" />
+          <div className="min-w-0 flex items-center gap-2 bg-[#181818]/90 border border-green-500/25 rounded-2xl px-3 py-2 overflow-hidden shadow-sm">
+            <TrendingUp className="hidden sm:block w-4 h-4 text-green-400 shrink-0" />
             <div className="min-w-0">
-              <p className="text-[8px] sm:text-[9px] leading-tight text-green-500/70 font-bold uppercase truncate"><span className="sm:hidden">Ofertas</span><span className="hidden sm:inline">Oferta Activa</span></p>
-              <p className="text-[11px] sm:text-sm font-black text-green-400 font-mono truncate">{formatNumber(totalVolumenOfertas)} <span className="text-[9px] sm:text-[10px] font-normal">TN</span></p>
+              <p className="text-[8px] sm:text-[9px] leading-tight text-green-400 font-bold uppercase tracking-wider truncate"><span className="sm:hidden">Ofertas</span><span className="hidden sm:inline">Oferta Activa</span></p>
+              <p className="text-xs sm:text-sm font-black text-white font-mono tabular-nums truncate">{formatNumber(totalVolumenOfertas)} <span className="text-[9px] sm:text-[10px] text-zinc-400 font-normal">TN</span></p>
             </div>
           </div>
-          <div className="min-w-0 flex items-center gap-2 bg-blue-500/8 border border-blue-500/20 rounded-xl px-2.5 sm:px-3 py-2 overflow-hidden">
-            <Scale className="hidden sm:block w-3.5 h-3.5 text-blue-400 shrink-0" />
+          <div className="min-w-0 flex items-center gap-2 bg-[#181818]/90 border border-blue-500/25 rounded-2xl px-3 py-2 overflow-hidden shadow-sm">
+            <Scale className="hidden sm:block w-4 h-4 text-blue-400 shrink-0" />
             <div className="min-w-0">
-              <p className="text-[8px] sm:text-[9px] leading-tight text-blue-500/70 font-bold uppercase truncate"><span className="sm:hidden">Demandas</span><span className="hidden sm:inline">Demanda Activa</span></p>
-              <p className="text-[11px] sm:text-sm font-black text-blue-400 font-mono truncate">{formatNumber(totalVolumenDemandas)} <span className="text-[9px] sm:text-[10px] font-normal">TN</span></p>
+              <p className="text-[8px] sm:text-[9px] leading-tight text-blue-400 font-bold uppercase tracking-wider truncate"><span className="sm:hidden">Demandas</span><span className="hidden sm:inline">Demanda Activa</span></p>
+              <p className="text-xs sm:text-sm font-black text-white font-mono tabular-nums truncate">{formatNumber(totalVolumenDemandas)} <span className="text-[9px] sm:text-[10px] text-zinc-400 font-normal">TN</span></p>
             </div>
           </div>
-          <div className="min-w-0 flex items-center gap-2 bg-amber-500/8 border border-amber-500/20 rounded-xl px-2.5 sm:px-3 py-2 overflow-hidden">
-            <BarChart3 className="hidden sm:block w-3.5 h-3.5 text-amber-400 shrink-0" />
+          <div className="min-w-0 flex items-center gap-2 bg-[#181818]/90 border border-amber-500/25 rounded-2xl px-3 py-2 overflow-hidden shadow-sm">
+            <BarChart3 className="hidden sm:block w-4 h-4 text-amber-400 shrink-0" />
             <div className="min-w-0">
-              <p className="text-[8px] sm:text-[9px] leading-tight text-amber-500/70 font-bold uppercase truncate"><span className="sm:hidden">Negociado</span><span className="hidden sm:inline">Valor Negociado</span></p>
-              <p className="text-[11px] sm:text-sm font-black text-amber-400 font-mono truncate">${formatNumber(Math.round(totalValorOfertas / 1000))}K</p>
+              <p className="text-[8px] sm:text-[9px] leading-tight text-amber-400 font-bold uppercase tracking-wider truncate"><span className="sm:hidden">Negociado</span><span className="hidden sm:inline">Valor Negociado</span></p>
+              <p className="text-xs sm:text-sm font-black text-white font-mono tabular-nums truncate">${formatNumber(Math.round(totalValorOfertas / 1000))}K</p>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="bg-[#181818] border border-[#2a2a2a] rounded-2xl p-1.5 grid grid-cols-4 sm:flex gap-1 sm:overflow-x-auto scrollbar-none shadow-lg min-w-0">
+      <div className="bg-[#181818]/90 backdrop-blur-md border border-[#2d2d2d] rounded-2xl p-1.5 grid grid-cols-4 sm:flex gap-1 sm:overflow-x-auto scrollbar-none shadow-xl min-w-0">
         {([
-          { key: 'ofertas',   label: 'Oferta / Venta',     mobileLabel: 'Ofertas',  emoji: '🌿', count: totalOfertas.length,   activeClass: 'bg-gradient-to-br from-[#1a2d20] to-[#162219] text-green-400 border border-green-500/25 shadow-green-500/10' },
-          { key: 'demandas',  label: 'Demanda / Compra',   mobileLabel: 'Compras',  emoji: '🛍️', count: totalDemandas.length,  activeClass: 'bg-gradient-to-br from-[#162333] to-[#101c2a] text-blue-400 border border-blue-500/25 shadow-blue-500/10' },
-          { key: 'whatsapp',  label: 'Alertas WhatsApp',   mobileLabel: 'WhatsApp', emoji: '📱', count: alerts.length,          activeClass: 'bg-gradient-to-br from-[#23182e] to-[#1a1123] text-purple-400 border border-purple-500/25 shadow-purple-500/10' },
-          { key: 'matches',   label: 'Cruces',             mobileLabel: 'Cruces',   emoji: '🤝', count: matches.length,         activeClass: 'bg-gradient-to-br from-[#2d2010] to-[#221809] text-amber-400 border border-amber-500/25 shadow-amber-500/10' },
+          { key: 'ofertas',   label: 'Oferta / Venta',     mobileLabel: 'Ofertas',  emoji: '🌿', count: totalOfertas.length,   activeClass: 'bg-gradient-to-br from-[#1a2d20] to-[#162219] text-green-400 border border-green-500/30 shadow-md shadow-green-950/20' },
+          { key: 'demandas',  label: 'Demanda / Compra',   mobileLabel: 'Compras',  emoji: '🛍️', count: totalDemandas.length,  activeClass: 'bg-gradient-to-br from-[#162333] to-[#101c2a] text-blue-400 border border-blue-500/30 shadow-md shadow-blue-950/20' },
+          { key: 'whatsapp',  label: 'Alertas WhatsApp',   mobileLabel: 'WhatsApp', emoji: '📱', count: alerts.length,          activeClass: 'bg-gradient-to-br from-[#23182e] to-[#1a1123] text-purple-400 border border-purple-500/30 shadow-md shadow-purple-950/20' },
+          { key: 'matches',   label: 'Cruces',             mobileLabel: 'Cruces',   emoji: '🤝', count: matches.length,         activeClass: 'bg-gradient-to-br from-[#2d2010] to-[#221809] text-amber-400 border border-amber-500/30 shadow-md shadow-amber-950/20' },
         ] as const).map(tab => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`flex-1 min-w-0 sm:min-w-[150px] py-2.5 px-1.5 sm:px-3 rounded-xl text-xs font-bold transition-all duration-200 whitespace-nowrap flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer shadow-sm ${
+            className={`flex-1 min-w-0 sm:min-w-[150px] min-h-[44px] py-2 px-1.5 sm:px-3 rounded-xl text-xs font-bold transition-all duration-200 whitespace-nowrap flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer ${
               activeTab === tab.key
                 ? tab.activeClass
-                : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/60'
+                : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
             }`}
           >
             <span className="hidden sm:inline">{tab.emoji}</span>
             <span className="sm:hidden text-[9px]">{tab.mobileLabel}</span>
             <span className="hidden sm:inline">{tab.label}</span>
-            <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full min-w-[20px] text-center ${
-              activeTab === tab.key ? 'bg-white/10' : 'bg-zinc-800'
+            <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full min-w-[20px] text-center font-mono ${
+              activeTab === tab.key ? 'bg-white/10 text-white' : 'bg-zinc-800 text-zinc-400'
             }`}>{tab.count}</span>
           </button>
         ))}
@@ -1041,24 +1041,24 @@ export function Oportunidades() {
                               </span>
                             </td>
                             <td className="px-4 py-3">
-                              <span className="text-sm font-bold font-mono text-zinc-200">{formatNumber(opp.quantity_tn)}</span>
-                              <span className="text-[10px] text-zinc-600 ml-1">TN</span>
+                              <span className="text-sm font-bold font-mono tabular-nums text-zinc-200">{formatNumber(opp.quantity_tn)}</span>
+                              <span className="text-[10px] text-zinc-500 ml-1 font-mono">TN</span>
                             </td>
                             <td className="px-4 py-3">
                               <div>
-                                <p className={`text-sm font-black font-mono ${isOferta ? 'text-green-400' : 'text-blue-400'}`}>
-                                  {opp.priceMode === 'a_negociar' ? <span className="text-zinc-500 text-xs">A negociar</span> : `$${formatNumber(opp.price_usd)}`}
+                                <p className={`text-sm font-black font-mono tabular-nums ${isOferta ? 'text-green-400' : 'text-blue-400'}`}>
+                                  {opp.priceMode === 'a_negociar' ? <span className="text-zinc-500 text-xs font-sans">A negociar</span> : `$${formatNumber(opp.price_usd)}`}
                                 </p>
-                                {opp.priceMode !== 'a_negociar' && <p className="text-[10px] text-zinc-600 font-mono">≈ ${formatNumber(Math.round(totalValor / 1000))}K total</p>}
+                                {opp.priceMode !== 'a_negociar' && <p className="text-[10px] text-zinc-500 font-mono tabular-nums">≈ ${formatNumber(Math.round(totalValor / 1000))}K total</p>}
                               </div>
                             </td>
-                            <td className="px-4 py-3 text-xs text-zinc-500 truncate max-w-[140px]">{opp.location || <span className="text-zinc-700 italic">A convenir</span>}</td>
+                            <td className="px-4 py-3 text-xs text-zinc-400 truncate max-w-[160px]">{opp.location || <span className="text-zinc-600 italic">A convenir</span>}</td>
                             <td className="px-4 py-3">
-                              <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                              <div className="flex items-center gap-1.5 justify-end opacity-70 group-hover:opacity-100 transition-opacity">
                                 {clientPhone && (
                                   <button
                                     onClick={() => handleOpenWaModal(clientPhone, opp.clientId, clientName, { cropType: opp.cropType, quantity_tn: opp.quantity_tn, price_usd: opp.price_usd, location: opp.location })}
-                                    className="p-1.5 text-green-400 hover:bg-green-500/10 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-green-500/20"
+                                    className="p-1.5 text-green-400 hover:bg-green-500/15 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-green-500/20 active:scale-95"
                                     title="WhatsApp"
                                   >
                                     <MessageSquare className="w-3.5 h-3.5" />
@@ -1066,7 +1066,8 @@ export function Oportunidades() {
                                 )}
                                 <button
                                   onClick={() => deleteOpp(opp.id)}
-                                  className="p-1.5 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-red-500/20"
+                                  className="p-1.5 text-zinc-400 hover:text-red-400 hover:bg-red-500/15 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-red-500/20 active:scale-95"
+                                  title="Eliminar"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </button>
@@ -1816,7 +1817,7 @@ function KanbanBoardView({
       </div>
 
       {/* Kanban Columns Grid / Horizontal Slider */}
-      <div className="mobile-scroll-row flex gap-4 min-h-[500px] scrollbar-none items-stretch select-none snap-x snap-mandatory pb-4">
+      <div className="overflow-x-auto flex gap-4 min-h-[520px] scrollbar-thin items-stretch select-none snap-x snap-mandatory pb-4">
         {columns.map(col => {
           const items = getColumnItems(col.id);
           const isOver = draggedOverColumn === col.id;
@@ -1846,7 +1847,7 @@ function KanbanBoardView({
             >
               <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-zinc-800/60">
                 <h4 className={`font-black text-xs uppercase tracking-widest ${(col as any).headerClass}`}>{col.name}</h4>
-                <span className="bg-zinc-900 border border-zinc-800 text-zinc-400 text-[10px] px-1.5 py-0.5 rounded-md font-mono font-bold">
+                <span className="bg-zinc-900 border border-zinc-800 text-zinc-400 text-[10px] px-1.5 py-0.5 rounded-md font-mono font-bold tabular-nums">
                   {items.length}
                 </span>
               </div>
@@ -1876,7 +1877,7 @@ function KanbanBoardView({
                         className="bg-[#1f1f1f] hover:bg-[#252525] border border-[#2e2e2e] hover:border-[#3a3a3a] rounded-xl p-3.5 transition-all duration-150 cursor-grab active:cursor-grabbing shadow-md relative group"
                       >
                         <div className="flex items-center justify-between mb-2.5">
-                          <span className="text-[9px] text-zinc-600 font-mono">
+                          <span className="text-[9px] text-zinc-500 font-mono tabular-nums">
                             {opp.createdAt ? format(new Date(opp.createdAt), 'dd/MM/yy') : '-'}
                           </span>
                           <span className={`text-[9px] uppercase font-black px-2 py-0.5 rounded-md border ${
@@ -1894,7 +1895,7 @@ function KanbanBoardView({
                           <span className={`inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-md border ${cs.bg} ${cs.text} ${cs.border}`}>
                             {cs.emoji} {opp.cropType}
                           </span>
-                          <span className="text-[9px] font-bold text-zinc-400 bg-zinc-900 border border-zinc-800 px-2 py-0.5 rounded-md font-mono">
+                          <span className="text-[9px] font-bold text-zinc-300 bg-zinc-900 border border-zinc-800 px-2 py-0.5 rounded-md font-mono tabular-nums">
                             {formatNumber(opp.quantity_tn)} TN
                           </span>
                         </div>
@@ -1902,19 +1903,19 @@ function KanbanBoardView({
                         <div className={`w-full rounded-lg px-3 py-2 ${
                           isOferta ? 'bg-green-500/8 border border-green-500/15' : 'bg-blue-500/8 border border-blue-500/15'
                         }`}>
-                          <p className={`text-xs font-black font-mono ${isOferta ? 'text-green-400' : 'text-blue-400'}`}>
+                          <p className={`text-xs font-black font-mono tabular-nums ${isOferta ? 'text-green-400' : 'text-blue-400'}`}>
                             {opp.priceMode === 'a_negociar' ? 'A negociar' : `$${formatNumber(opp.price_usd)} USD/tn`}
                           </p>
                           {opp.location && (
-                            <p className="text-[9px] text-zinc-600 mt-0.5 truncate">📍 {opp.location}</p>
+                            <p className="text-[9px] text-zinc-400 mt-0.5 truncate">📍 {opp.location}</p>
                           )}
                         </div>
 
                         {(opp.nextAction || opp.expiresAt || opp.lostReason) && (
-                          <div className="space-y-0.5 text-[9px] text-zinc-500 border-t border-zinc-800 mt-2.5 pt-2">
-                            {opp.nextAction && <p className="truncate"><span className="text-zinc-600">▶</span> {opp.nextAction}</p>}
-                            {opp.expiresAt && <p><span className="text-zinc-600">⏱</span> Vence {format(new Date(opp.expiresAt), 'dd/MM/yy')}</p>}
-                            {opp.lostReason && <p className="text-red-400"><span className="text-zinc-600">✕</span> {opp.lostReason}</p>}
+                          <div className="space-y-0.5 text-[9px] text-zinc-400 border-t border-zinc-800 mt-2.5 pt-2">
+                            {opp.nextAction && <p className="truncate"><span className="text-zinc-500">▶</span> {opp.nextAction}</p>}
+                            {opp.expiresAt && <p><span className="text-zinc-500">⏱</span> Vence {format(new Date(opp.expiresAt), 'dd/MM/yy')}</p>}
+                            {opp.lostReason && <p className="text-red-400"><span className="text-zinc-500">✕</span> {opp.lostReason}</p>}
                           </div>
                         )}
 
@@ -1923,7 +1924,7 @@ function KanbanBoardView({
                           <select
                             value={opp.status || 'abierta'}
                             onChange={(e) => handleStatusChange(opp.id, e.target.value)}
-                            className="bg-zinc-900 border border-zinc-700/80 text-zinc-300 text-[10px] rounded-lg px-2 py-1 outline-none font-mono cursor-pointer flex-1 max-w-[140px]"
+                            className="bg-zinc-900 border border-zinc-700/80 text-zinc-300 text-[10px] rounded-lg px-2.5 py-1.5 outline-none font-mono cursor-pointer flex-1 max-w-[145px] min-h-[34px]"
                           >
                             <option value="abierta">📂 Abierta</option>
                             <option value="negociacion">🤝 Negociación</option>
@@ -1933,7 +1934,7 @@ function KanbanBoardView({
                             <option value="vencida">⌛ Vencida</option>
                           </select>
 
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1.5">
                             {clientPhone && (
                               <button
                                 onClick={(e) => {
@@ -1943,18 +1944,18 @@ function KanbanBoardView({
                                     price_usd: opp.price_usd, location: opp.location
                                   });
                                 }}
-                                className="p-1.5 text-green-400 bg-green-500/10 hover:bg-green-500/20 rounded-lg transition-colors cursor-pointer border border-green-500/20"
+                                className="w-8 h-8 text-green-400 bg-green-500/10 hover:bg-green-500/20 rounded-lg transition-colors cursor-pointer border border-green-500/20 flex items-center justify-center shrink-0 active:scale-95"
                                 title="WhatsApp"
                               >
-                                <Phone className="w-3 h-3" />
+                                <Phone className="w-3.5 h-3.5" />
                               </button>
                             )}
                             <button
                               onClick={(e) => { e.stopPropagation(); deleteOpp(opp.id); }}
-                              className="p-1.5 text-zinc-400 bg-zinc-800 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer border border-zinc-700 hover:border-red-500/20"
+                              className="w-8 h-8 text-zinc-400 bg-zinc-800 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer border border-zinc-700 hover:border-red-500/20 flex items-center justify-center shrink-0 active:scale-95"
                               title="Eliminar"
                             >
-                              <Trash2 className="w-3 h-3" />
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         </div>

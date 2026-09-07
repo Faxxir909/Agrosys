@@ -2218,26 +2218,26 @@ export function Clientes() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             
             {/* KPI 1: Clientes Activos / Totales */}
-            <div className="bg-[#1a1a1a] border border-[#333] rounded-2xl p-3.5 sm:p-5 flex items-center justify-between shadow-sm relative overflow-hidden group hover:border-green-500/20 transition-all duration-300">
+            <div className="bg-[#181818]/90 backdrop-blur-md border border-[#2d2d2d] rounded-2xl p-3.5 sm:p-5 flex items-center justify-between shadow-sm relative overflow-hidden group hover:border-green-500/30 transition-all duration-300">
               <div className="space-y-0.5 sm:space-y-1 min-w-0">
                 <p className="text-[9px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-500 truncate">Clientes Total</p>
-                <p className="text-xl sm:text-3xl font-extrabold text-white tracking-tight">{computedStats.total}</p>
+                <p className="text-xl sm:text-3xl font-black font-mono tabular-nums text-white tracking-tight">{computedStats.total}</p>
                 <p className="text-[9px] sm:text-[10px] text-gray-400 font-medium truncate">
-                  <span className="text-green-500 font-bold">{computedStats.activeQty}</span> activos
+                  <span className="text-green-400 font-bold font-mono tabular-nums">{computedStats.activeQty}</span> activos
                 </p>
               </div>
               <div className="p-2 sm:p-3 bg-green-500/10 rounded-xl group-hover:scale-110 transition-transform shrink-0">
-                <Users className="w-4 h-4 sm:w-5 sm:h-5 text-green-500" />
+                <Users className="w-4 h-4 sm:w-5 sm:h-5 text-green-400" />
               </div>
               <div className="absolute bottom-0 left-0 h-1 bg-green-600/30 w-full" />
             </div>
 
             {/* KPI 2: Superficie Administrada */}
-            <div className="bg-[#1a1a1a] border border-[#333] rounded-2xl p-3.5 sm:p-5 flex items-center justify-between shadow-sm relative overflow-hidden group hover:border-[#10b981]/20 transition-all duration-300">
+            <div className="bg-[#181818]/90 backdrop-blur-md border border-[#2d2d2d] rounded-2xl p-3.5 sm:p-5 flex items-center justify-between shadow-sm relative overflow-hidden group hover:border-emerald-500/30 transition-all duration-300">
               <div className="space-y-0.5 sm:space-y-1 min-w-0">
                 <p className="text-[9px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-500 truncate">Superficie Total</p>
-                <p className="text-xl sm:text-3xl font-extrabold text-emerald-400 tracking-tight truncate">
-                  {computedStats.totHectares.toLocaleString()} <span className="text-xs sm:text-base font-normal text-gray-400">ha</span>
+                <p className="text-xl sm:text-3xl font-black font-mono tabular-nums text-emerald-400 tracking-tight truncate">
+                  {computedStats.totHectares.toLocaleString()} <span className="text-xs sm:text-base font-normal text-gray-400 font-sans">ha</span>
                 </p>
                 <p className="text-[9px] sm:text-[10px] text-gray-400 font-medium truncate">Propias y Alquiladas</p>
               </div>
@@ -2248,27 +2248,27 @@ export function Clientes() {
             </div>
 
             {/* KPI 3: Estimación de Consumo Insumos */}
-            <div className="bg-[#1a1a1a] border border-[#333] rounded-2xl p-3.5 sm:p-5 flex items-center justify-between shadow-sm relative overflow-hidden group hover:border-yellow-500/20 transition-all duration-300">
+            <div className="bg-[#181818]/90 backdrop-blur-md border border-[#2d2d2d] rounded-2xl p-3.5 sm:p-5 flex items-center justify-between shadow-sm relative overflow-hidden group hover:border-yellow-500/30 transition-all duration-300">
               <div className="space-y-0.5 sm:space-y-1 min-w-0">
                 <p className="text-[9px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-500 truncate">Potencial Insumos</p>
-                <p className="text-lg sm:text-3xl font-extrabold text-yellow-500 tracking-tight truncate">
+                <p className="text-lg sm:text-3xl font-black font-mono tabular-nums text-yellow-400 tracking-tight truncate">
                   USD {computedStats.totPotential.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                 </p>
                 <p className="text-[9px] sm:text-[10px] text-gray-400 font-medium truncate">Agroquímicos</p>
               </div>
               <div className="p-2 sm:p-3 bg-yellow-500/10 rounded-xl group-hover:scale-110 transition-transform shrink-0">
-                <Award className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-500" />
+                <Award className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" />
               </div>
               <div className="absolute bottom-0 left-0 h-1 bg-yellow-600/30 w-full" />
             </div>
 
             {/* KPI 4: Tasa de Relevamiento */}
-            <div className="bg-[#1a1a1a] border border-[#333] rounded-2xl p-3.5 sm:p-5 flex items-center justify-between shadow-sm relative overflow-hidden group hover:border-indigo-500/20 transition-all duration-300">
+            <div className="bg-[#181818]/90 backdrop-blur-md border border-[#2d2d2d] rounded-2xl p-3.5 sm:p-5 flex items-center justify-between shadow-sm relative overflow-hidden group hover:border-indigo-500/30 transition-all duration-300">
               <div className="space-y-0.5 sm:space-y-1 min-w-0">
                 <p className="text-[9px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-500 truncate">Socio Relevado</p>
-                <p className="text-xl sm:text-3xl font-extrabold text-indigo-400 tracking-tight">{computedStats.relevamientoPct}%</p>
+                <p className="text-xl sm:text-3xl font-black font-mono tabular-nums text-indigo-400 tracking-tight">{computedStats.relevamientoPct}%</p>
                 <p className="text-[9px] sm:text-[10px] text-gray-400 font-medium truncate">
-                  <span className="text-indigo-400 font-bold">{computedStats.relevadoQty}</span> socios
+                  <span className="text-indigo-400 font-bold font-mono tabular-nums">{computedStats.relevadoQty}</span> socios
                 </p>
               </div>
               <div className="p-2 sm:p-3 bg-indigo-500/10 rounded-xl group-hover:scale-110 transition-transform shrink-0">
@@ -2279,7 +2279,7 @@ export function Clientes() {
           </div>
 
           {/* 2. SECCIÓN: COMPREHENSIVE BENTO DE FILTROS & ORDENAMIENTOS */}
-          <div className="bg-[#1a1a1a] border border-[#333] rounded-2xl p-4 sm:p-5 space-y-4 min-w-0">
+          <div className="bg-[#181818]/90 backdrop-blur-md border border-[#2d2d2d] rounded-2xl p-4 sm:p-5 space-y-4 min-w-0 shadow-lg">
             <div 
               className="flex items-center justify-between pb-2 border-b border-[#2b2b2b] cursor-pointer md:cursor-default"
               onClick={() => {
@@ -2289,9 +2289,14 @@ export function Clientes() {
               }}
             >
               <div className="flex items-center gap-2">
-                <Settings2 className="w-4 h-4 text-green-500" />
+                <Settings2 className="w-4 h-4 text-green-400" />
                 <span className="text-xs font-bold text-gray-300 uppercase tracking-wider">Filtros Avanzados</span>
                 <span className="hidden md:inline text-xs font-bold text-gray-400 uppercase tracking-wider">e Inteligencia Logística</span>
+                {activeFiltersCount > 0 && (
+                  <span className="text-[10px] bg-green-500/20 text-green-400 border border-green-500/30 font-mono font-bold px-2 py-0.5 rounded-full">
+                    {activeFiltersCount} activo{activeFiltersCount !== 1 ? 's' : ''}
+                  </span>
+                )}
                 <span className="md:hidden text-[9px] bg-green-500/15 text-green-400 px-2 py-0.5 rounded border border-green-500/25 font-bold uppercase ml-1">
                   {isMobileFiltersExpanded ? 'Contraer ▲' : 'Configurar ▼'}
                 </span>
@@ -2302,7 +2307,7 @@ export function Clientes() {
                   <button 
                     type="button"
                     onClick={handleClearFilters}
-                    className="text-[10px] font-semibold text-yellow-500 hover:text-yellow-400 bg-yellow-500/10 hover:bg-yellow-500/15 border border-yellow-500/20 px-2 py-0.5 rounded transition-all"
+                    className="text-[10px] font-semibold text-yellow-500 hover:text-yellow-400 bg-yellow-500/10 hover:bg-yellow-500/15 border border-yellow-500/20 px-2 py-0.5 rounded transition-all cursor-pointer"
                   >
                     Restablecer
                   </button>
@@ -2544,13 +2549,13 @@ export function Clientes() {
                   <div className="grid grid-cols-2 gap-3.5 mt-4 border-t border-[#252525] pt-3.5 text-xs">
                     <div>
                       <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider mb-0.5">Hectáreas Operadas</p>
-                      <p className="text-gray-200 font-extrabold flex items-baseline gap-1">
-                        {totalHas.toLocaleString()} <span className="text-[10px] text-gray-500 font-normal">ha</span>
+                      <p className="text-gray-200 font-black font-mono tabular-nums flex items-baseline gap-1">
+                        {totalHas.toLocaleString()} <span className="text-[10px] text-gray-500 font-normal font-sans">ha</span>
                       </p>
                     </div>
                     <div>
                       <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider mb-0.5">Potencial Insumos</p>
-                      <p className="text-green-400 font-extrabold">
+                      <p className="text-green-400 font-black font-mono tabular-nums">
                         ${potentialUSD.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                       </p>
                     </div>
@@ -2587,7 +2592,7 @@ export function Clientes() {
                   </div>
 
                   {/* Acciones de Flote / HOVER */}
-                  <div className="mt-3 flex items-center justify-end gap-1.5 lg:absolute lg:right-4 lg:top-4 lg:mt-0 lg:opacity-0 lg:group-hover:opacity-100 transition-all duration-300" onClick={(e) => e.stopPropagation()}>
+                  <div className="mt-3 flex items-center justify-end gap-1.5 lg:absolute lg:right-4 lg:top-4 lg:mt-0 lg:opacity-75 lg:group-hover:opacity-100 transition-all duration-300" onClick={(e) => e.stopPropagation()}>
                     {customer.phone && (
                       <>
                         <button 
@@ -2595,7 +2600,7 @@ export function Clientes() {
                             e.stopPropagation();
                             handleOpenWaModal(customer.phone, customer.id, customer.name);
                           }}
-                          className="w-9 h-9 flex items-center justify-center bg-emerald-600/10 hover:bg-emerald-600 text-emerald-400 hover:text-white rounded-lg border border-emerald-500/15 transition-all duration-150 cursor-pointer"
+                          className="w-9 h-9 flex items-center justify-center bg-emerald-600/10 hover:bg-emerald-600 text-emerald-400 hover:text-white rounded-lg border border-emerald-500/15 transition-all duration-150 cursor-pointer active:scale-95"
                           title="Enviar WhatsApp con Plantilla"
                         >
                           <MessageSquare className="w-3.5 h-3.5" />
@@ -2603,7 +2608,7 @@ export function Clientes() {
                         <a 
                           href={`tel:${customer.phone}`}
                           onClick={(e) => e.stopPropagation()}
-                          className="w-9 h-9 flex items-center justify-center bg-blue-600/10 hover:bg-blue-600 text-blue-400 hover:text-white rounded-lg border border-blue-500/15 transition-all duration-150"
+                          className="w-9 h-9 flex items-center justify-center bg-blue-600/10 hover:bg-blue-600 text-blue-400 hover:text-white rounded-lg border border-blue-500/15 transition-all duration-150 active:scale-95"
                           title={`Llamar: ${customer.phone}`}
                         >
                           <Phone className="w-3.5 h-3.5" />

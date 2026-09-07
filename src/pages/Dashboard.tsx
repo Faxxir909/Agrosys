@@ -387,7 +387,7 @@ export function Dashboard() {
       </div>
 
       {/* KPI Stats Grid - 2 columns on mobile, 4 on desktop */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-5">
         {[
           { 
             label: 'Vol. Ofertado',
@@ -396,8 +396,8 @@ export function Dashboard() {
             sub: `${ofertasAbiertas.length} ofertas activas`,
             icon: ArrowUpRight, 
             color: 'text-green-400', 
-            bg: 'bg-green-500/10',
-            border: 'border-green-500/10'
+            bg: 'bg-green-500/10 border-green-500/20',
+            glow: 'hover:border-green-500/40 hover:shadow-green-500/5'
           },
           { 
             label: 'Vol. Demandado',
@@ -406,8 +406,8 @@ export function Dashboard() {
             sub: `${demandasAbiertas.length} demandas activas`,
             icon: ArrowDownRight, 
             color: 'text-blue-400', 
-            bg: 'bg-blue-500/10',
-            border: 'border-blue-500/10'
+            bg: 'bg-blue-500/10 border-blue-500/20',
+            glow: 'hover:border-blue-500/40 hover:shadow-blue-500/5'
           },
           { 
             label: 'Boletos Cerrados',
@@ -416,8 +416,8 @@ export function Dashboard() {
             sub: `${formatNumber(volCerrado)} TN cerradas`,
             icon: Award, 
             color: 'text-purple-400', 
-            bg: 'bg-purple-500/10',
-            border: 'border-purple-500/10'
+            bg: 'bg-purple-500/10 border-purple-500/20',
+            glow: 'hover:border-purple-500/40 hover:shadow-purple-500/5'
           },
           { 
             label: 'Honorarios Est.',
@@ -426,19 +426,24 @@ export function Dashboard() {
             sub: 'Comisiones cobradas',
             icon: DollarSign, 
             color: 'text-amber-400', 
-            bg: 'bg-amber-500/10',
-            border: 'border-amber-500/10'
+            bg: 'bg-amber-500/10 border-amber-500/20',
+            glow: 'hover:border-amber-500/40 hover:shadow-amber-500/5'
           }
         ].map((kpi, i) => (
-          <div key={i} className={`bg-[#1e1e1e] border ${kpi.border} p-3 sm:p-5 rounded-2xl shadow-md transition-all hover:scale-[1.01]`}>
-            <div className="flex justify-between items-start">
-              <div className="min-w-0 flex-1 mr-1.5">
-                <p className="text-[10px] sm:text-xs font-bold text-gray-400 uppercase tracking-wider mb-1 truncate"><span className="sm:hidden">{kpi.mobileLabel}</span><span className="hidden sm:inline">{kpi.label}</span></p>
-                <div className="text-base sm:text-2xl lg:text-3xl font-black text-white tracking-tight truncate">{kpi.val}</div>
-                <p className="text-[9px] sm:text-xs text-gray-400 mt-1 font-mono truncate">{kpi.sub}</p>
+          <div key={i} className={`bg-[#181818]/90 backdrop-blur-md border border-[#2d2d2d] ${kpi.glow} p-3.5 sm:p-5 rounded-2xl shadow-md transition-all duration-200 hover:-translate-y-0.5`}>
+            <div className="flex justify-between items-start gap-2">
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] sm:text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1 truncate">
+                  <span className="sm:hidden">{kpi.mobileLabel}</span>
+                  <span className="hidden sm:inline">{kpi.label}</span>
+                </p>
+                <div className="text-base sm:text-2xl lg:text-3xl font-black text-white tracking-tight truncate font-mono tabular-nums">
+                  {kpi.val}
+                </div>
+                <p className="text-[9px] sm:text-xs text-zinc-500 mt-1 font-mono truncate">{kpi.sub}</p>
               </div>
-              <div className={`p-2 sm:p-3 rounded-xl shrink-0 ${kpi.bg}`}>
-                <kpi.icon className={`w-3.5 h-3.5 sm:w-5 sm:h-5 ${kpi.color}`} />
+              <div className={`p-2 sm:p-2.5 rounded-xl shrink-0 border ${kpi.bg}`}>
+                <kpi.icon className={`w-4 h-4 sm:w-5 sm:h-5 ${kpi.color}`} />
               </div>
             </div>
           </div>
@@ -449,7 +454,7 @@ export function Dashboard() {
       <InteractiveMap />
 
       {/* Secciones de Gráficos, Pizarra de Precios, Agenda de Campo y Auditoría */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6">
         {/* Col 1: Precios de Pizarra */}
         <div className="bg-[#1e1e1e] border border-[#333] rounded-2xl p-4 sm:p-6 shadow-sm flex flex-col justify-between">
           <div>

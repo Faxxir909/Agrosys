@@ -24,76 +24,101 @@ export function Topbar() {
   };
 
   return (
-    <header className="min-h-14 sm:h-16 bg-[#1e1e1e] border-b border-[#333] flex items-center justify-between px-3 sm:px-6 lg:px-8 sticky top-0 z-30 w-full min-w-0 pt-[env(safe-area-inset-top)] sm:pt-0 transition-all duration-350">
+    <header className="min-h-14 sm:h-16 bg-[#181818]/90 backdrop-blur-md border-b border-[#2d2d2d] flex items-center justify-between px-3.5 sm:px-6 lg:px-8 sticky top-0 z-30 w-full min-w-0 pt-[env(safe-area-inset-top)] sm:pt-0 transition-all duration-300">
       {/* Mobile Search Overlay */}
       {mobileSearchOpen ? (
-        <div className="flex items-center gap-2 w-full animate-fade-in md:hidden">
+        <div className="flex items-center gap-2 w-full animate-fade-in md:hidden py-1">
           <div className="relative flex-1">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400" />
             <input 
               type="search" 
               autoFocus
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Buscar productores, granos..." 
-              className="w-full bg-[#252525] border border-green-500/50 rounded-full py-1.5 pl-9 pr-4 text-xs text-white focus:outline-none"
+              placeholder="Buscar productores, granos, localidades..." 
+              className="w-full bg-[#242424] border border-green-500/60 rounded-full py-2 pl-10 pr-8 text-xs text-white placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-green-500/50 shadow-inner"
             />
+            {searchQuery && (
+              <button 
+                type="button" 
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white p-1 text-xs"
+              >
+                ✕
+              </button>
+            )}
           </div>
           <button
             onClick={() => {
               setMobileSearchOpen(false);
               setSearchQuery('');
             }}
-            className="w-10 h-10 flex items-center justify-center text-zinc-400 hover:text-white rounded-lg"
+            className="w-9 h-9 flex items-center justify-center text-zinc-400 hover:text-white bg-zinc-800/80 hover:bg-zinc-800 rounded-full shrink-0 transition-colors"
             title="Cerrar búsqueda"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
       ) : (
         <>
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
             {/* Toggle Menú Mobile */}
             <button 
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="lg:hidden w-10 h-10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors shrink-0"
+              className="lg:hidden w-10 h-10 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/5 active:scale-95 rounded-xl transition-all shrink-0 border border-transparent hover:border-zinc-800"
               title="Abrir menú"
             >
               <Menu className="w-5 h-5" />
             </button>
 
-            <div className="text-gray-300 font-bold text-xs sm:text-sm truncate">
-              <span className="hidden sm:inline text-zinc-500 font-normal">AgroSys / </span>
-              {getBreadcrumbs()}
+            {/* Breadcrumb con badge */}
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="text-gray-200 font-bold text-xs sm:text-sm truncate flex items-center gap-1.5">
+                <span className="hidden sm:inline text-zinc-500 font-normal">AgroSys / </span>
+                <span className="text-white tracking-tight">{getBreadcrumbs()}</span>
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-4">
+          <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+            {/* Live Indicator Pill on Desktop */}
+            <div className="hidden xl:flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-950/30 border border-emerald-500/20 text-[11px] text-emerald-400 font-medium">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span>Mercado En Línea</span>
+            </div>
+
             {/* Mobile Search Trigger Button */}
             <button
               onClick={() => setMobileSearchOpen(true)}
-              className="md:hidden w-10 h-10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/5 rounded-full transition-colors"
+              className="md:hidden w-10 h-10 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/5 active:scale-95 rounded-full transition-all"
               title="Buscar"
             >
               <Search className="w-4 h-4" />
             </button>
 
-            {/* Desktop Search Input */}
-            <div className="relative hidden md:block">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            {/* Desktop Search Input with Shortcut Hint */}
+            <div className="relative hidden md:block group">
+              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-green-400 transition-colors" />
               <input 
                 type="search" 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Buscar..." 
-                className="bg-[#252525] border border-[#444] rounded-full py-1.5 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-green-500 transition-colors w-44 lg:w-60"
+                placeholder="Buscar productores o granos..." 
+                className="bg-[#222222] border border-[#383838] focus:border-green-500/60 rounded-full py-1.5 pl-10 pr-12 text-xs text-white placeholder-zinc-500 focus:outline-none transition-all w-48 lg:w-64 focus:w-72 shadow-inner"
               />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[9px] font-mono font-bold text-zinc-400 bg-zinc-800/80 px-1.5 py-0.5 rounded border border-zinc-700/60 pointer-events-none">
+                /
+              </span>
             </div>
 
             <NotificationsDropdown />
 
-            <div className="flex items-center gap-2 pl-2 sm:pl-4 border-l border-[#333]">
-              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-green-600 flex items-center justify-center text-xs sm:text-sm font-bold text-white shadow-lg">
+            {/* User Profile Pill */}
+            <div className="flex items-center gap-2 pl-2 sm:pl-3 border-l border-[#333]">
+              <div 
+                className="w-8 h-8 rounded-full bg-gradient-to-tr from-green-700 to-emerald-500 flex items-center justify-center text-xs font-black text-white shadow-md ring-2 ring-zinc-800 select-none cursor-pointer"
+                title={user?.email || 'Usuario'}
+              >
                 {user?.email?.charAt(0).toUpperCase() || 'U'}
               </div>
             </div>
