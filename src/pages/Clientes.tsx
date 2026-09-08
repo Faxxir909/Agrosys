@@ -10,6 +10,7 @@ import { useTasks } from '../hooks/useTasks';
 import { api } from '../lib/api';
 import { WhatsappTemplateModal } from '../components/WhatsappTemplateModal';
 import { CSVMappingModal } from '../components/CSVMappingModal';
+import { ClientTable, type ClientListItem } from '../components/clients/ClientTable';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell
 } from 'recharts';
@@ -142,7 +143,7 @@ export function Clientes() {
   // Calendar Grid Year & Month states
   const [currentYear, setCurrentYear] = useState<number>(new Date().getFullYear());
   const [currentMonth, setCurrentMonth] = useState<number>(new Date().getMonth());
-  const [isMobileFiltersExpanded, setIsMobileFiltersExpanded] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
 
   // Load interactions for the selected customer
   useEffect(() => {
@@ -788,6 +789,16 @@ export function Clientes() {
       sortOrder !== 'asc'
     );
   }, [searchTerm, filterProvincia, filterLocalidad, filterTipoCliente, filterCategoria, filterAnoFiscal, filterRelevado, filterStatus, sortBy, sortOrder]);
+
+  const advancedFilterCount = [
+    filterProvincia,
+    filterLocalidad,
+    filterTipoCliente,
+    filterCategoria,
+    filterAnoFiscal,
+    filterRelevado,
+    filterStatus,
+  ].filter(Boolean).length;
 
   if (loading) return (
     <div className="flex items-center justify-center h-[60vh]">
@@ -2278,62 +2289,58 @@ export function Clientes() {
             </div>
           </div>
 
-          {/* 2. SECCIÓN: COMPREHENSIVE BENTO DE FILTROS & ORDENAMIENTOS */}
-          <div className="bg-[#1a1a1a] border border-[#333] rounded-2xl p-4 sm:p-5 space-y-4 min-w-0">
-            <div 
-              className="flex items-center justify-between pb-2 border-b border-[#2b2b2b] cursor-pointer md:cursor-default"
-              onClick={() => {
-                if (window.innerWidth < 768) {
-                  setIsMobileFiltersExpanded(!isMobileFiltersExpanded);
-                }
-              }}
-            >
-              <div className="flex items-center gap-2">
-                <Settings2 className="w-4 h-4 text-green-500" />
-                <span className="text-xs font-bold text-gray-300 uppercase tracking-wider">Filtros Avanzados</span>
-                <span className="hidden md:inline text-xs font-bold text-gray-400 uppercase tracking-wider">e Inteligencia Logística</span>
-                <span className="md:hidden text-[9px] bg-green-500/15 text-green-400 px-2 py-0.5 rounded border border-green-500/25 font-bold uppercase ml-1">
-                  {isMobileFiltersExpanded ? 'Contraer ▲' : 'Configurar ▼'}
-                </span>
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 sm:p-5 space-y-4 min-w-0">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Buscar productor, zona o tag..."
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  className="w-full bg-zinc-800 border border-zinc-700 hover:border-zinc-600 rounded-xl pl-9 pr-4 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-green-500 transition-all font-medium"
+                />
               </div>
-              
-              <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center gap-2 shrink-0">
                 {isAnyFilterActive && (
-                  <button 
+                  <button
                     type="button"
                     onClick={handleClearFilters}
-                    className="text-[10px] font-semibold text-yellow-500 hover:text-yellow-400 bg-yellow-500/10 hover:bg-yellow-500/15 border border-yellow-500/20 px-2 py-0.5 rounded transition-all"
+                    className="text-xs font-semibold text-amber-400 hover:text-amber-300 bg-amber-500/10 border border-amber-500/20 px-3 py-2.5 rounded-xl"
                   >
                     Restablecer
                   </button>
                 )}
+                <button
+                  type="button"
+                  onClick={() => setShowFilters(open => !open)}
+                  className={`px-3 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border ${
+                    showFilters || advancedFilterCount > 0
+                      ? 'bg-green-600 text-white border-green-500'
+                      : 'bg-zinc-800 text-zinc-300 border-zinc-700 hover:text-white'
+                  }`}
+                >
+                  <Filter className="w-4 h-4" />
+                  Filtros Avanzados
+                  {advancedFilterCount > 0 && (
+                    <span className="min-w-5 h-5 px-1 rounded-full bg-black/20 flex items-center justify-center font-mono">
+                      {advancedFilterCount}
+                    </span>
+                  )}
+                </button>
               </div>
             </div>
 
-            <div className={`${isMobileFiltersExpanded ? 'block' : 'hidden md:block'} space-y-4`}>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                
-                {/* Buscador de Texto */}
-                <div className="relative">
-                  <Search className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input 
-                    type="text" 
-                    placeholder="Buscar productor, zona o tag..." 
-                    value={searchTerm} 
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full bg-[#222] border border-[#333] hover:border-[#444] rounded-xl pl-9 pr-4 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-green-500 transition-all font-medium"
-                  />
-                </div>
-
-                {/* Selector de Provincia */}
-                <div>
+            {showFilters && (
+              <div className="space-y-4 pt-2 border-t border-zinc-800">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   <select
                     value={filterProvincia}
-                    onChange={(e) => {
+                    onChange={e => {
                       setFilterProvincia(e.target.value);
                       setFilterLocalidad('');
                     }}
-                    className="w-full bg-[#222] border border-[#333] hover:border-[#444] rounded-xl px-3 py-2.5 text-xs text-gray-300 focus:outline-none focus:border-green-500 transition-all"
+                    className="w-full bg-zinc-800 border border-zinc-700 hover:border-zinc-600 rounded-xl px-3 py-2.5 text-xs text-zinc-300 focus:outline-none focus:border-green-500"
                   >
                     <option value="">Todas las Provincias</option>
                     {PROVINCES.map(p => (
@@ -2341,29 +2348,23 @@ export function Clientes() {
                     ))}
                     <option value="Otra">Otra Provincia / Exterior</option>
                   </select>
-                </div>
 
-                {/* Selector de Localidad (Se activa si hay provincia) */}
-                <div>
                   <select
                     value={filterLocalidad}
-                    onChange={(e) => setFilterLocalidad(e.target.value)}
+                    onChange={e => setFilterLocalidad(e.target.value)}
                     disabled={!filterProvincia || filterProvincia === 'Otra'}
-                    className="w-full bg-[#222] border border-[#333] hover:border-[#444] rounded-xl px-3 py-2.5 text-xs text-gray-300 focus:outline-none focus:border-green-500 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="w-full bg-zinc-800 border border-zinc-700 hover:border-zinc-600 rounded-xl px-3 py-2.5 text-xs text-zinc-300 focus:outline-none focus:border-green-500 disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     <option value="">Todas las Localidades</option>
                     {filterProvincia && ARGENTINE_REGIONS[filterProvincia]?.map(loc => (
                       <option key={loc} value={loc}>{loc}</option>
                     ))}
                   </select>
-                </div>
 
-                {/* Tipo de Cliente CRM */}
-                <div>
-                  <select 
-                    value={filterTipoCliente} 
-                    onChange={e => setFilterTipoCliente(e.target.value)} 
-                    className="w-full bg-[#222] border border-[#333] hover:border-[#444] rounded-xl px-3 py-2.5 text-xs text-gray-300 focus:outline-none focus:border-green-500 transition-all"
+                  <select
+                    value={filterTipoCliente}
+                    onChange={e => setFilterTipoCliente(e.target.value)}
+                    className="w-full bg-zinc-800 border border-zinc-700 hover:border-zinc-600 rounded-xl px-3 py-2.5 text-xs text-zinc-300 focus:outline-none focus:border-green-500"
                   >
                     <option value="">Todos los Tipos de Cuenta</option>
                     <option value="Prospecto">Prospecto</option>
@@ -2371,18 +2372,11 @@ export function Clientes() {
                     <option value="Clave">Clave</option>
                     <option value="Estratégico">Estratégico</option>
                   </select>
-                </div>
 
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3.5 pt-1">
-                
-                {/* Categoría */}
-                <div>
-                  <select 
-                    value={filterCategoria} 
-                    onChange={e => setFilterCategoria(e.target.value)} 
-                    className="w-full bg-[#222] border border-[#333] hover:border-[#444] rounded-xl px-3 py-2 text-xs text-gray-300 focus:outline-none focus:border-green-500 transition-all"
+                  <select
+                    value={filterCategoria}
+                    onChange={e => setFilterCategoria(e.target.value)}
+                    className="w-full bg-zinc-800 border border-zinc-700 hover:border-zinc-600 rounded-xl px-3 py-2.5 text-xs text-zinc-300 focus:outline-none focus:border-green-500"
                   >
                     <option value="">Todas las Categorías</option>
                     <option value="Productor">Productor</option>
@@ -2392,12 +2386,11 @@ export function Clientes() {
                   </select>
                 </div>
 
-                {/* Año Fiscal */}
-                <div>
-                  <select 
-                    value={filterAnoFiscal} 
-                    onChange={e => setFilterAnoFiscal(e.target.value)} 
-                    className="w-full bg-[#222] border border-[#333] hover:border-[#444] rounded-xl px-3 py-2 text-xs text-gray-300 focus:outline-none focus:border-green-500 transition-all"
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <select
+                    value={filterAnoFiscal}
+                    onChange={e => setFilterAnoFiscal(e.target.value)}
+                    className="w-full bg-zinc-800 border border-zinc-700 hover:border-zinc-600 rounded-xl px-3 py-2.5 text-xs text-zinc-300 focus:outline-none focus:border-green-500"
                   >
                     <option value="">Todos los Años Fiscales</option>
                     <option value="FY2324">FY2324</option>
@@ -2405,243 +2398,66 @@ export function Clientes() {
                     <option value="FY2526">FY2526</option>
                     <option value="FY2627">FY2627</option>
                   </select>
-                </div>
 
-                {/* Condición de Relevamiento */}
-                <div>
-                  <select 
-                    value={filterRelevado} 
-                    onChange={e => setFilterRelevado(e.target.value)} 
-                    className="w-full bg-[#222] border border-[#333] hover:border-[#444] rounded-xl px-3 py-2 text-xs text-gray-300 focus:outline-none focus:border-green-500 transition-all"
+                  <select
+                    value={filterRelevado}
+                    onChange={e => setFilterRelevado(e.target.value)}
+                    className="w-full bg-zinc-800 border border-zinc-700 hover:border-zinc-600 rounded-xl px-3 py-2.5 text-xs text-zinc-300 focus:outline-none focus:border-green-500"
                   >
                     <option value="">Estado de Relevamiento</option>
                     <option value="Sí">Socio Relevado</option>
                     <option value="No">No Relevado</option>
                   </select>
-                </div>
 
-                {/* Condición de Estado */}
-                <div>
-                  <select 
-                    value={filterStatus} 
-                    onChange={e => setFilterStatus(e.target.value)} 
-                    className="w-full bg-[#222] border border-[#333] hover:border-[#444] rounded-xl px-3 py-2 text-xs text-gray-300 focus:outline-none focus:border-green-500 transition-all"
+                  <select
+                    value={filterStatus}
+                    onChange={e => setFilterStatus(e.target.value)}
+                    className="w-full bg-zinc-800 border border-zinc-700 hover:border-zinc-600 rounded-xl px-3 py-2.5 text-xs text-zinc-300 focus:outline-none focus:border-green-500"
                   >
                     <option value="">Todos los Estados</option>
                     <option value="activo">Activo</option>
                     <option value="inactivo">Inactivo</option>
                     <option value="suspendido">Suspendido</option>
                   </select>
+
+                  <div className="flex gap-1.5">
+                    <select
+                      value={sortBy}
+                      onChange={e => setSortBy(e.target.value)}
+                      className="flex-1 bg-zinc-800 border border-zinc-700 hover:border-zinc-600 rounded-xl px-2.5 py-2.5 text-xs text-zinc-300 focus:outline-none focus:border-green-500"
+                    >
+                      <option value="name">Ordenar por: Nombre</option>
+                      <option value="hectareasTotales">Hectáreas Operadas</option>
+                      <option value="potencialTotal">PPTO / Potencial USD</option>
+                      <option value="fechaUltimoContacto">Último Contacto</option>
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                      className="bg-green-500/10 border border-zinc-700 hover:border-zinc-600 text-green-400 p-2 rounded-xl flex items-center justify-center"
+                      title={sortOrder === 'asc' ? 'Orden Ascendente' : 'Orden Descendente'}
+                    >
+                      <ArrowUpDown className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
-
-                {/* Ordenamiento Combinado */}
-                <div className="flex gap-1.5">
-                  <select 
-                    value={sortBy} 
-                    onChange={e => setSortBy(e.target.value)} 
-                    className="flex-1 bg-[#222] border border-[#333] hover:border-[#444] rounded-xl px-2.5 py-2 text-xs text-gray-300 focus:outline-none focus:border-green-500 transition-all"
-                  >
-                    <option value="name">Ordenar por: Nombre</option>
-                    <option value="hectareasTotales">Hectáreas Operadas</option>
-                    <option value="potencialTotal">PPTO / Potencial USD</option>
-                    <option value="fechaUltimoContacto">Último Contacto</option>
-                  </select>
-                  <button
-                    type="button"
-                    onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
-                    className="bg-[#22c55e]/10 border border-[#333] hover:border-[#444] text-green-400 p-2 rounded-xl flex items-center justify-center hover:bg-[#22c55e]/15 transition-all"
-                    title={sortOrder === 'asc' ? 'Orden Ascendente' : 'Orden Descendente'}
-                  >
-                    <ArrowUpDown className="w-4 h-4" />
-                  </button>
-                </div>
-
-              </div>
-            </div>
-          </div>
-
-          {/* 3. SECCIÓN: LISTADO BENTO DE PRODUCTORES EN CRM */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {filteredAndSortedCustomers.map(customer => {
-              const totalHas = (Number(customer.hectareasPropias) || 0) + (Number(customer.hectareasAlquiladas) || 0);
-              const potentialUSD = (Number(customer.potencialAgroq) || 0) + (Number(customer.potencialFerti) || 0);
-              const contactDate = customer.fechaUltimoContacto || '';
-              
-              // Color de avatar dependiendo del Tipo de Cliente
-              let avatarBg = 'bg-blue-950/40 text-blue-400 border border-blue-850';
-              if (customer.tipoCliente === 'Ventas') avatarBg = 'bg-emerald-950/40 text-emerald-400 border border-emerald-850';
-              if (customer.tipoCliente === 'Clave') avatarBg = 'bg-indigo-950/40 text-indigo-400 border border-indigo-850';
-              if (customer.tipoCliente === 'Estratégico') avatarBg = 'bg-purple-950/40 text-purple-400 border border-purple-850';
-              if (customer.tipoCliente === 'Prospecto') avatarBg = 'bg-amber-950/40 text-amber-500 border border-amber-850';
-
-              // Iniciales para el avatar redondo
-              const initials = (customer.name || 'CR')
-                .split(' ')
-                .slice(0, 2)
-                .map((word: string) => word[0])
-                .join('')
-                .toUpperCase();
-
-              // Determinar cultivos activos para mostrar tags de producción rápido
-              const cropTags = [];
-              if (Number(customer.hasSoja) > 0) cropTags.push({ code: 'Sj', color: 'bg-green-950/60 text-green-400 border-green-900/30' });
-              if (Number(customer.hasMaiz) > 0) cropTags.push({ code: 'Mz', color: 'bg-yellow-950/60 text-yellow-400 border-yellow-900/30' });
-              if (Number(customer.hasTrigo) > 0) cropTags.push({ code: 'Tg', color: 'bg-orange-950/60 text-orange-400 border-orange-900/30' });
-              if (Number(customer.hasGirasol) > 0) cropTags.push({ code: 'Gs', color: 'bg-amber-950/60 text-amber-500 border-amber-900/30' });
-              if (Number(customer.hasSorgo) > 0) cropTags.push({ code: 'Sg', color: 'bg-red-950/60 text-red-400 border-red-900/30' });
-
-              return (
-                <div 
-                  key={customer.id} 
-                  onClick={() => { setSelectedCustomer(customer); setViewingCustomerDetails(true); }}
-                  className="bg-[#1a1a1a] border border-[#2d2d2d] hover:border-green-500/50 rounded-2xl p-4 sm:p-5 cursor-pointer transition-all lg:hover:-translate-y-1.5 duration-300 hover:shadow-xl hover:shadow-green-950/5 relative group overflow-hidden"
-                >
-                  {/* Gradiente sutil superior */}
-                  <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-green-500/10 to-transparent group-hover:via-green-500/40 transition-all duration-300" />
-                  
-                  {/* Cabecera de la Tarjeta */}
-                  <div className="flex items-start gap-3.5">
-                    <div className={`w-11 h-11 rounded-full flex items-center justify-center font-bold text-xs select-none shadow-inner flex-shrink-0 ${avatarBg}`}>
-                      {initials}
-                    </div>
-                    
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <h3 className="font-bold text-base text-gray-100 group-hover:text-white transition-colors truncate" title={customer.name}>
-                          {customer.name}
-                        </h3>
-                        {customer.relevado === 'Sí' && (
-                          <span className="flex-shrink-0 text-[10px] text-green-400 flex items-center bg-[#151515] p-0.5 rounded-full border border-green-950" title="Productor Relevado Directamente">
-                            <Check className="w-3.5 h-3.5" />
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#252525] text-gray-300 border border-[#333]">
-                          {customer.categoria || 'Productor'}
-                        </span>
-                        <span className="text-[10px] font-medium text-gray-400 truncate flex items-center gap-1">
-                          <MapPin className="w-3 h-3 text-red-500/60" /> {customer.zona || 'Sin Zona'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Indicador de Cultivos Activos */}
-                  {cropTags.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-3.5 border-t border-[#252525] pt-3">
-                      <span className="text-[9px] uppercase font-bold text-gray-500 mr-1 flex items-center">Siembras:</span>
-                      {cropTags.map((t, idx) => (
-                        <span key={idx} className={`text-[9px] font-bold px-1.5 py-0.2 rounded-md border ${t.color}`}>
-                          {t.code}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Detalle de Superficies y Insumos */}
-                  <div className="grid grid-cols-2 gap-3.5 mt-4 border-t border-[#252525] pt-3.5 text-xs">
-                    <div>
-                      <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider mb-0.5">Hectáreas Operadas</p>
-                      <p className="text-gray-200 font-extrabold flex items-baseline gap-1">
-                        {totalHas.toLocaleString()} <span className="text-[10px] text-gray-500 font-normal">ha</span>
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider mb-0.5">Potencial Insumos</p>
-                      <p className="text-green-400 font-extrabold">
-                        ${potentialUSD.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* CUIT & Contact Meta */}
-                  <div className="mt-4 pt-3.5 border-t border-[#252525] flex justify-between items-center text-[10px]">
-                    <div className="font-mono text-gray-500 flex items-center">
-                      <span className="bg-[#222] px-2 py-0.5 rounded border border-[#2b2b2b] select-all">
-                        {customer.cuit || 'Sin CUIT'}
-                      </span>
-                      {customer.cuit && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigator.clipboard.writeText(customer.cuit);
-                            addToast('CUIT copiado al portapapeles 📋', 'success');
-                          }}
-                          className="ml-1.5 p-1 text-gray-500 hover:text-green-400 transition-colors"
-                          title="Copiar CUIT"
-                        >
-                          <FileText className="w-3 h-3" />
-                        </button>
-                      )}
-                    </div>
-                    
-                    <div className="text-gray-400 font-medium">
-                      {contactDate ? (
-                        <span>Visita: {contactDate}</span>
-                      ) : (
-                        <span className="text-amber-500/70">Sin Contacto</span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Acciones de Flote / HOVER */}
-                  <div className="mt-3 flex items-center justify-end gap-1.5 lg:absolute lg:right-4 lg:top-4 lg:mt-0 lg:opacity-0 lg:group-hover:opacity-100 transition-all duration-300" onClick={(e) => e.stopPropagation()}>
-                    {customer.phone && (
-                      <>
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenWaModal(customer.phone, customer.id, customer.name);
-                          }}
-                          className="w-9 h-9 flex items-center justify-center bg-emerald-600/10 hover:bg-emerald-600 text-emerald-400 hover:text-white rounded-lg border border-emerald-500/15 transition-all duration-150 cursor-pointer"
-                          title="Enviar WhatsApp con Plantilla"
-                        >
-                          <MessageSquare className="w-3.5 h-3.5" />
-                        </button>
-                        <a 
-                          href={`tel:${customer.phone}`}
-                          onClick={(e) => e.stopPropagation()}
-                          className="w-9 h-9 flex items-center justify-center bg-blue-600/10 hover:bg-blue-600 text-blue-400 hover:text-white rounded-lg border border-blue-500/15 transition-all duration-150"
-                          title={`Llamar: ${customer.phone}`}
-                        >
-                          <Phone className="w-3.5 h-3.5" />
-                        </a>
-                      </>
-                    )}
-                    {customer.email && (
-                      <a 
-                        href={`mailto:${customer.email}`}
-                        onClick={(e) => e.stopPropagation()}
-                        className="w-9 h-9 flex items-center justify-center bg-indigo-600/10 hover:bg-indigo-600 text-indigo-400 hover:text-white rounded-lg border border-indigo-500/15 transition-all duration-150"
-                        title={`Escribir a: ${customer.email}`}
-                      >
-                        <Mail className="w-3.5 h-3.5" />
-                      </a>
-                    )}
-                  </div>
-
-                </div>
-              );
-            })}
-
-            {filteredAndSortedCustomers.length === 0 && (
-              <div className="col-span-full h-56 flex flex-col items-center justify-center border-2 border-dashed border-[#333] rounded-2xl bg-[#1e1e1e] p-6 text-center animate-in fade-in zoom-in-95 duration-150">
-                <Search className="w-10 h-10 text-gray-600 mb-3" />
-                <h4 className="font-bold text-gray-300 text-sm">No se encontraron clientes</h4>
-                <p className="text-gray-500 text-xs mt-1 max-w-sm">
-                  Ningún productor califica dentro del set de filtros seleccionados. Intente restablecer las opciones ingresadas.
-                </p>
-                <button
-                  onClick={handleClearFilters}
-                  className="mt-4 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-lg shadow transition-colors"
-                >
-                  Restablecer Filtros
-                </button>
               </div>
             )}
           </div>
+
+          <ClientTable
+            clients={filteredAndSortedCustomers as ClientListItem[]}
+            onSelect={customer => {
+              setSelectedCustomer(customer);
+              setViewingCustomerDetails(true);
+            }}
+            onOpenWhatsApp={handleOpenWaModal}
+            onCopyCuit={cuit => {
+              navigator.clipboard.writeText(cuit);
+              addToast('CUIT copiado al portapapeles 📋', 'success');
+            }}
+            onResetFilters={handleClearFilters}
+          />
 
           {/* 4. SECCIÓN: ANALÍTICAS GRÁFICAS INTEGRALES */}
           {filteredAndSortedCustomers.length > 0 && (
