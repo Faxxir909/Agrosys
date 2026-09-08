@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { api } from '../lib/api';
+import { connectSocket, disconnectSocket } from '../lib/socket';
 
 export interface LocalUser {
   uid: string;
@@ -57,6 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             role: 'broker'
           };
           setUser(initialUser);
+          connectSocket();
 
           // Fetch full user details from backend
           try {
@@ -72,13 +74,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           } catch (e) {
             console.error('[AUTH] Failed to fetch user profile, logging out:', e);
             localStorage.removeItem('agro_jwt_token');
+            disconnectSocket();
             setUser(null);
           }
         } else {
           localStorage.removeItem('agro_jwt_token');
+          disconnectSocket();
           setUser(null);
         }
       } else {
+        disconnectSocket();
         setUser(null);
       }
       setLoading(false);
@@ -92,6 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await api.auth.login({ email, password });
       if (res && res.token && res.user) {
         localStorage.setItem('agro_jwt_token', res.token);
+        connectSocket();
         setUser({
           uid: res.user.id,
           id: res.user.id,
@@ -113,6 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await api.auth.register({ email, name, role, password });
       if (res && res.token && res.user) {
         localStorage.setItem('agro_jwt_token', res.token);
+        connectSocket();
         setUser({
           uid: res.user.id,
           id: res.user.id,
@@ -131,6 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     localStorage.removeItem('agro_jwt_token');
+    disconnectSocket();
     setUser(null);
   };
 
