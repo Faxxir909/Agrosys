@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, CheckCircle2, Circle, Info, Loader2, MessageSquare, Phone, ChevronDown, ChevronUp, LayoutGrid, List, TrendingUp, Scale, BarChart3 } from 'lucide-react';
+import { Plus, Trash2, CheckCircle2, Circle, Info, Loader2, MessageSquare, Phone, LayoutGrid, List, TrendingUp, Scale, BarChart3 } from 'lucide-react';
 import { WhatsappTemplateModal } from '../components/WhatsappTemplateModal';
-import { ARGENTINE_REGIONS, PROVINCES } from '../data/regions';
 import { api } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useOpportunities } from '../hooks/useOpportunities';
@@ -11,6 +10,7 @@ import { useUI } from '../contexts/UIContext';
 import { format } from 'date-fns';
 import { WhatsappQRSetup } from '../components/WhatsappQRSetup';
 import { OpportunityReviewModal } from '../components/OpportunityReviewModal';
+import { OpportunityFormModal, type OpportunityFormValues } from '../components/opportunities/OpportunityFormModal';
 
 const CROP_COLORS: Record<string, { bg: string; text: string; border: string; emoji: string }> = {
   soja:    { bg: 'bg-amber-500/10',   text: 'text-amber-400',   border: 'border-amber-500/30',  emoji: '🌱' },
@@ -20,12 +20,6 @@ const CROP_COLORS: Record<string, { bg: string; text: string; border: string; em
   girasol: { bg: 'bg-lime-500/10',    text: 'text-lime-400',    border: 'border-lime-500/30',   emoji: '🌻' },
 };
 const getCropStyle = (crop: string) => CROP_COLORS[crop?.toLowerCase()] ?? { bg: 'bg-zinc-700/30', text: 'text-zinc-300', border: 'border-zinc-600', emoji: '🌾' };
-
-const defaultExpiryDate = () => {
-  const date = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-  date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
-  return date.toISOString().slice(0, 10);
-};
 
 export function Oportunidades() {
   const { opportunities, loading: oppLoading } = useOpportunities();
@@ -66,7 +60,8 @@ export function Oportunidades() {
     setWaModalContextVars(context);
     setWaModalOpen(true);
   };
-  const [isMobileFormExpanded, setIsMobileFormExpanded] = useState(false);
+  const [isOpportunityModalOpen, setIsOpportunityModalOpen] = useState(false);
+  const [opportunityKind, setOpportunityKind] = useState<'oferta' | 'demanda'>('oferta');
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean;
     title: string;
@@ -79,120 +74,26 @@ export function Oportunidades() {
     onConfirm: () => {},
   });
 
-
-  const [formData, setFormData] = useState({
-    clientId: '',
-    cropType: 'soja',
-    quantity_tn: '',
-    price_usd: '',
-    location: '',
-    priceMode: 'fijo' as 'fijo' | 'a_negociar',
-    deliveryDate: '',
-    expiresAt: defaultExpiryDate(),
-    paymentTerms: '',
-    grainQuality: '',
-    nextAction: 'Contactar y validar condiciones',
-  });
-
-  const [oppProvincia, setOppProvincia] = useState('');
-  const [oppLocalidad, setOppLocalidad] = useState('');
-  const [oppCustomLocalidad, setOppCustomLocalidad] = useState('');
-
-  React.useEffect(() => {
-    const locStr = formData.location || '';
-    
-    let parsedProv = '';
-    let parsedLoc = '';
-    
-    const splitComma = locStr.split(',');
-    if (splitComma.length >= 2) {
-      const potentialLoc = splitComma[0].trim();
-      const potentialProv = splitComma[1].trim();
-      
-      const foundProv = Object.keys(ARGENTINE_REGIONS).find(
-        p => p.toLowerCase() === potentialProv.toLowerCase()
-      );
-      if (foundProv) {
-        parsedProv = foundProv;
-        parsedLoc = potentialLoc;
-      }
-    }
-    
-    if (!parsedProv && locStr) {
-      const cleanLoc = locStr.toLowerCase().trim();
-      for (const [prov, localities] of Object.entries(ARGENTINE_REGIONS)) {
-        const matchedLoc = localities.find(
-          loc => loc.toLowerCase() === cleanLoc || cleanLoc.includes(loc.toLowerCase())
-        );
-        if (matchedLoc) {
-          parsedProv = prov;
-          parsedLoc = matchedLoc;
-          break;
-        }
-      }
-    }
-    
-    if (locStr && !parsedProv) {
-      setOppProvincia('Otra');
-      setOppLocalidad('Otro');
-      setOppCustomLocalidad(locStr);
-    } else if (parsedProv) {
-      setOppProvincia(parsedProv);
-      const exists = ARGENTINE_REGIONS[parsedProv]?.includes(parsedLoc);
-      if (exists) {
-        setOppLocalidad(parsedLoc);
-        setOppCustomLocalidad('');
-      } else {
-        setOppLocalidad('Otro');
-        setOppCustomLocalidad(parsedLoc);
-      }
-    } else {
-      setOppProvincia('');
-      setOppLocalidad('');
-      setOppCustomLocalidad('');
-    }
-  }, [formData.location]);
-
-  const syncOppLocationField = (prov: string, loc: string, custom: string) => {
-    let finalLocation = '';
-    if (prov === 'Otra') {
-      finalLocation = custom.trim();
-    } else if (prov) {
-      if (loc === 'Otro') {
-        finalLocation = custom.trim() ? `${custom.trim()}, ${prov}` : prov;
-      } else if (loc) {
-        finalLocation = `${loc}, ${prov}`;
-      } else {
-        finalLocation = prov;
-      }
-    }
-    setFormData((prev: any) => ({
-      ...prev,
-      location: finalLocation
-    }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCreateOpportunity = async (formData: OpportunityFormValues, kind: 'oferta' | 'demanda') => {
     if (!user) return;
-    
+
     const client = clients.find(c => c.id === formData.clientId);
     if (!client) {
-      addToast("Seleccione un cliente válido", "error");
-      return;
+      addToast('Seleccione un cliente válido', 'error');
+      throw new Error('Cliente inválido');
     }
     if (Number(formData.quantity_tn) <= 0) {
       addToast('Ingrese una cantidad mayor a 0 TN', 'error');
-      return;
+      throw new Error('Cantidad inválida');
     }
     if (formData.priceMode === 'fijo' && Number(formData.price_usd) <= 0) {
       addToast('Ingrese un precio o marque A negociar', 'error');
-      return;
+      throw new Error('Precio inválido');
     }
 
     try {
       await api.opportunities.create({
-        type: activeTab === 'ofertas' ? 'oferta' : 'demanda',
+        type: kind,
         clientId: formData.clientId,
         cropType: formData.cropType,
         quantity_tn: Number(formData.quantity_tn),
@@ -205,19 +106,10 @@ export function Oportunidades() {
         grainQuality: formData.grainQuality || null,
         nextAction: formData.nextAction || 'Contactar y validar condiciones',
       });
-      setFormData({
-        ...formData,
-        quantity_tn: '',
-        price_usd: '',
-        location: '',
-        deliveryDate: '',
-        expiresAt: defaultExpiryDate(),
-        paymentTerms: '',
-        grainQuality: ''
-      });
-      addToast(`${activeTab === 'ofertas' ? 'Oferta' : 'Demanda'} creada con éxito`, 'success');
+      addToast(`${kind === 'oferta' ? 'Oferta' : 'Demanda'} creada con éxito`, 'success');
     } catch (error: any) {
       addToast(error.message || 'Error al crear el registro', 'error');
+      throw error;
     }
   };
 
@@ -647,165 +539,6 @@ export function Oportunidades() {
         </div>
       ) : (
         <>
-          <div className="border border-[#2c2c2c] rounded-2xl overflow-hidden shadow-2xl mb-6 bg-[#1a1a1a]">
-            <div
-              onClick={() => setIsMobileFormExpanded(!isMobileFormExpanded)}
-              className={`p-4 sm:p-5 flex items-center justify-between cursor-pointer md:cursor-default transition-colors ${
-                activeTab === 'ofertas'
-                  ? 'bg-gradient-to-r from-[#1a2d1e] via-[#1c2920] to-[#1e2222]'
-                  : 'bg-gradient-to-r from-[#18243a] via-[#1a2233] to-[#1c1f2e]'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-lg shadow-inner ${
-                  activeTab === 'ofertas' ? 'bg-green-500/15 border border-green-500/20' : 'bg-blue-500/15 border border-blue-500/20'
-                }`}>
-                  {activeTab === 'ofertas' ? '🛒' : '🛍️'}
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-white">
-                    {activeTab === 'ofertas' ? 'Nueva Oferta de Venta' : 'Nueva Demanda de Compra'}
-                  </h3>
-                  <p className="text-[10px] text-zinc-500 font-mono mt-0.5">
-                    {isMobileFormExpanded ? 'Toca para contraer' : 'Completar para ingresar al pipeline'}
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                className="md:hidden p-2 bg-zinc-800/70 hover:bg-zinc-700 rounded-lg text-zinc-400 hover:text-white transition-colors border border-zinc-700"
-              >
-                {isMobileFormExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              </button>
-            </div>
-
-            <div className={`${isMobileFormExpanded ? 'block' : 'hidden md:block'} p-4 sm:p-6 border-t border-[#333] bg-[#1d1d1d]`}>
-              <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 items-end">
-                <div className="col-span-1 sm:col-span-2 md:col-span-1">
-                  <label className="block text-xs font-medium text-gray-400 mb-1.5">Cliente</label>
-                  <select required value={formData.clientId} onChange={e => setFormData({...formData, clientId: e.target.value})} className="w-full bg-[#252525] border border-[#444] rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-green-500">
-                    <option value="">Seleccione cliente...</option>
-                    {clients.map(c => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-400 mb-1.5">Grano</label>
-                  <select required value={formData.cropType} onChange={e => setFormData({...formData, cropType: e.target.value})} className="w-full bg-[#252525] border border-[#444] rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-green-500">
-                    <option value="soja">Soja</option>
-                    <option value="maiz">Maíz</option>
-                    <option value="trigo">Trigo</option>
-                    <option value="sorgo">Sorgo</option>
-                    <option value="girasol">Girasol</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-400 mb-1.5">Toneladas</label>
-                  <input required type="number" min="1" value={formData.quantity_tn} onChange={e => setFormData({...formData, quantity_tn: e.target.value})} placeholder="Tn" className="w-full bg-[#252525] border border-[#444] rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-green-500" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-400 mb-1.5">Modalidad de precio</label>
-                  <select value={formData.priceMode} onChange={e => setFormData({...formData, priceMode: e.target.value as 'fijo' | 'a_negociar'})} className="w-full bg-[#252525] border border-[#444] rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-green-500">
-                    <option value="fijo">Precio fijo</option>
-                    <option value="a_negociar">A negociar</option>
-                  </select>
-                </div>
-                {formData.priceMode === 'fijo' && (
-                  <div>
-                    <label className="block text-xs font-medium text-gray-400 mb-1.5">Precio (USD/tn)</label>
-                    <input required type="number" min="1" step="0.5" value={formData.price_usd} onChange={e => setFormData({...formData, price_usd: e.target.value})} placeholder="USD/tn" className="w-full bg-[#252525] border border-[#444] rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-green-500" />
-                  </div>
-                )}
-                <div>
-                  <label className="block text-xs font-medium text-gray-400 mb-1.5">Provincia (Destino)</label>
-                  <select 
-                    value={oppProvincia} 
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setOppProvincia(val);
-                      setOppLocalidad('');
-                      setOppCustomLocalidad('');
-                      syncOppLocationField(val, '', '');
-                    }} 
-                    className="w-full bg-[#252525] border border-[#444] rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-green-500"
-                  >
-                    <option value="">Seleccionar Prov...</option>
-                    {PROVINCES.map(p => (
-                      <option key={p} value={p}>{p}</option>
-                    ))}
-                    <option value="Otra">Otra Provincia / Exterior...</option>
-                  </select>
-                </div>
-                {oppProvincia && oppProvincia !== 'Otra' && (
-                  <div>
-                    <label className="block text-xs font-medium text-gray-400 mb-1.5">Localidad (Destino)</label>
-                    <select 
-                      value={oppLocalidad} 
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setOppLocalidad(val);
-                        if (val !== 'Otro') {
-                          setOppCustomLocalidad('');
-                        }
-                        syncOppLocationField(oppProvincia, val, val === 'Otro' ? oppCustomLocalidad : '');
-                      }} 
-                      className="w-full bg-[#252525] border border-[#444] rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-green-500"
-                    >
-                      <option value="">Seleccionar Loc...</option>
-                      {ARGENTINE_REGIONS[oppProvincia]?.map(loc => (
-                        <option key={loc} value={loc}>{loc}</option>
-                      ))}
-                      <option value="Otro">Otro (Escribir)...</option>
-                    </select>
-                  </div>
-                )}
-                {(oppProvincia === 'Otra' || oppLocalidad === 'Otro') && (
-                  <div>
-                    <label className="block text-xs font-medium text-gray-400 mb-1.5">Destino personalizado</label>
-                    <input 
-                      type="text" 
-                      required
-                      value={oppCustomLocalidad} 
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setOppCustomLocalidad(val);
-                        syncOppLocationField(oppProvincia, oppLocalidad, val);
-                      }} 
-                      placeholder="Ej: Rosario" 
-                      className="w-full bg-[#252525] border border-[#444] rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-green-500" 
-                    />
-                  </div>
-                )}
-                <div>
-                  <label className="block text-xs font-medium text-gray-400 mb-1.5">Fecha de entrega</label>
-                  <input type="date" value={formData.deliveryDate} onChange={e => setFormData({...formData, deliveryDate: e.target.value})} className="w-full bg-[#252525] border border-[#444] rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-green-500" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-400 mb-1.5">Vigente hasta</label>
-                  <input required type="date" min={new Date().toISOString().slice(0, 10)} value={formData.expiresAt} onChange={e => setFormData({...formData, expiresAt: e.target.value})} className="w-full bg-[#252525] border border-[#444] rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-green-500" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-400 mb-1.5">Condición de pago</label>
-                  <input value={formData.paymentTerms} onChange={e => setFormData({...formData, paymentTerms: e.target.value})} placeholder="Ej: 7 días" className="w-full bg-[#252525] border border-[#444] rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-green-500" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-400 mb-1.5">Calidad</label>
-                  <input value={formData.grainQuality} onChange={e => setFormData({...formData, grainQuality: e.target.value})} placeholder="Ej: grado 2" className="w-full bg-[#252525] border border-[#444] rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-green-500" />
-                </div>
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-medium text-gray-400 mb-1.5">Próxima acción</label>
-                  <input value={formData.nextAction} onChange={e => setFormData({...formData, nextAction: e.target.value})} placeholder="Qué hay que hacer después" className="w-full bg-[#252525] border border-[#444] rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-green-500" />
-                </div>
-                <div className="pt-2 col-span-1 sm:col-span-2 md:col-span-3 lg:col-span-4 xl:col-span-6 flex justify-end">
-                  <button type="submit" disabled={clientsLoading} className={`w-full sm:w-auto px-6 py-2.5 rounded-lg text-xs font-bold text-white transition-colors shadow-lg flex items-center justify-center gap-2 active:scale-95 duration-100 cursor-pointer ${activeTab === 'ofertas' ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'}`}>
-                    <Plus className="w-4 h-4" /> Registrar {activeTab === 'ofertas' ? 'Oferta' : 'Demanda'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-
       <div className="bg-[#191919] border border-[#2a2a2a] rounded-2xl shadow-2xl overflow-hidden flex flex-col">
         <div className="px-4 py-3 border-b border-[#252525] flex flex-col sm:flex-row sm:items-center sm:justify-between bg-[#1e1e1e] gap-3">
           <div className="mobile-scroll-row flex whitespace-nowrap scrollbar-none gap-1.5 pb-1 sm:pb-0">
@@ -827,6 +560,19 @@ export function Oportunidades() {
             })}
           </div>
           <div className="flex items-center gap-3 shrink-0 justify-between sm:justify-end w-full sm:w-auto">
+            <button
+              type="button"
+              onClick={() => {
+                setOpportunityKind(activeTab === 'demandas' ? 'demanda' : 'oferta');
+                setIsOpportunityModalOpen(true);
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold text-white flex items-center gap-1.5 shrink-0 ${
+                activeTab === 'ofertas' ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'
+              }`}
+            >
+              <Plus className="w-4 h-4" />
+              Nueva Oportunidad
+            </button>
             <div className="flex bg-zinc-900 rounded-xl p-0.5 border border-zinc-800 shadow-inner shrink-0">
               <button
                 type="button"
@@ -1085,6 +831,15 @@ export function Oportunidades() {
       </div>
       </>
       )}
+
+      <OpportunityFormModal
+        isOpen={isOpportunityModalOpen}
+        kind={opportunityKind}
+        clients={clients}
+        clientsLoading={clientsLoading}
+        onClose={() => setIsOpportunityModalOpen(false)}
+        onSubmit={handleCreateOpportunity}
+      />
 
       {reviewAlert && (
         <OpportunityReviewModal
