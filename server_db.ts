@@ -1,14 +1,10 @@
 import pg from 'pg';
 import dotenv from 'dotenv';
-import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
+import { hashPassword } from './src/services/passwords.ts';
 
 dotenv.config();
-
-function hashPassword(password: string): string {
-  const salt = crypto.randomBytes(16).toString('hex');
-  const hash = crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
-  return `v2:${salt}:${hash}`;
-}
 
 const connectionString = process.env.DATABASE_URL;
 let pool: pg.Pool | null = null;
@@ -91,6 +87,27 @@ export async function dbTransaction<T>(
   }
 }
 
+function splitSqlStatements(sql: string): string[] {
+  return sql
+    .split('\n')
+    .filter(line => !line.trim().startsWith('--'))
+    .join('\n')
+    .split(';')
+    .map(stmt => stmt.trim())
+    .filter(Boolean);
+}
+
+async function applyCanonicalSchema() {
+  const schemaPath = path.join(process.cwd(), 'schema.sql');
+  if (!fs.existsSync(schemaPath)) {
+    throw new Error(`No se encontró schema.sql en ${schemaPath}`);
+  }
+  const sql = fs.readFileSync(schemaPath, 'utf8');
+  for (const statement of splitSqlStatements(sql)) {
+    await dbQuery(statement);
+  }
+}
+
 // Initialize tables on startup
 export async function initializeDatabase() {
   if (!pool) {
@@ -106,7 +123,7 @@ export async function initializeDatabase() {
       );
     }
 
-    if (simulatedDb.users.length === 0) {
+    if (process.env.NODE_ENV !== 'production' && simulatedDb.users.length === 0) {
       simulatedDb.users.push({
         id: 'dev_user_broker',
         email: 'broker@agrosys.com',
@@ -455,259 +472,8 @@ export async function initializeDatabase() {
   }
 
   try {
-    console.log('[DB] Initializing PostgreSQL tables...');
-
-    // Users
-    await dbQuery(`
-      CREATE TABLE IF NOT EXISTS users (
-        id VARCHAR(128) PRIMARY KEY,
-        email VARCHAR(100) NOT NULL,
-        role VARCHAR(20) NOT NULL,
-        name VARCHAR(100),
-        password_hash VARCHAR(255),
-        created_at TIMESTAMP NOT NULL DEFAULT NOW()
-      );
-    `);
-
-    // Ensure password_hash column exists
-    await dbQuery(`
-      ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255);
-    `);
-
-    // Clients
-    await dbQuery(`
-      CREATE TABLE IF NOT EXISTS clients (
-        id VARCHAR(128) PRIMARY KEY,
-        name VARCHAR(150) NOT NULL,
-        type VARCHAR(50),
-        phone VARCHAR(30),
-        email VARCHAR(100),
-        cuit VARCHAR(20),
-        status VARCHAR(30),
-        notes TEXT,
-        location JSONB,
-        next_contact_date TIMESTAMP,
-        last_contact_date TIMESTAMP,
-        metadata JSONB,
-        owner_id VARCHAR(128) NOT NULL,
-        created_at TIMESTAMP NOT NULL DEFAULT NOW()
-      );
-    `);
-
-    // Ensure metadata column exists
-    await dbQuery(`
-      ALTER TABLE clients ADD COLUMN IF NOT EXISTS metadata JSONB;
-    `);
-
-    // Client Interactions
-    await dbQuery(`
-      CREATE TABLE IF NOT EXISTS client_interactions (
-        id VARCHAR(128) PRIMARY KEY,
-        client_id VARCHAR(128) REFERENCES clients(id) ON DELETE CASCADE,
-        client_name VARCHAR(150) NOT NULL,
-        type VARCHAR(50) NOT NULL,
-        note TEXT NOT NULL,
-        date VARCHAR(20) NOT NULL,
-        owner_id VARCHAR(128) NOT NULL,
-        created_at TIMESTAMP NOT NULL DEFAULT NOW()
-      );
-    `);
-
-    // Planted Areas
-    await dbQuery(`
-      CREATE TABLE IF NOT EXISTS planted_areas (
-        id VARCHAR(128) PRIMARY KEY,
-        client_id VARCHAR(128) REFERENCES clients(id) ON DELETE CASCADE,
-        crop_type VARCHAR(50) NOT NULL,
-        campaign VARCHAR(50) NOT NULL,
-        area_ha NUMERIC NOT NULL,
-        owner_id VARCHAR(128) NOT NULL
-      );
-    `);
-
-    // Opportunities
-    await dbQuery(`
-      CREATE TABLE IF NOT EXISTS opportunities (
-        id VARCHAR(128) PRIMARY KEY,
-        type VARCHAR(10) NOT NULL,
-        client_id VARCHAR(128) REFERENCES clients(id) ON DELETE CASCADE,
-        crop_type VARCHAR(50) NOT NULL,
-        quantity_tn NUMERIC NOT NULL,
-        price_usd NUMERIC NOT NULL,
-        location VARCHAR(200),
-        status VARCHAR(20) NOT NULL,
-        owner_id VARCHAR(128) NOT NULL,
-        created_at TIMESTAMP NOT NULL DEFAULT NOW()
-      );
-    `);
-
-    await dbQuery(`
-      ALTER TABLE opportunities ALTER COLUMN status TYPE VARCHAR(40);
-      ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS delivery_date DATE;
-      ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP;
-      ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS payment_terms VARCHAR(100);
-      ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS grain_quality VARCHAR(100);
-      ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS price_mode VARCHAR(20) NOT NULL DEFAULT 'fijo';
-      ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS next_action VARCHAR(250);
-      ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS lost_reason VARCHAR(150);
-      ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS source_alert_id VARCHAR(128);
-      ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT NOW();
-      UPDATE opportunities SET status = 'ganada' WHERE status = 'cerrada';
-    `);
-
-    // WhatsApp Alerts
-    await dbQuery(`
-      CREATE TABLE IF NOT EXISTS whatsapp_alerts (
-        id VARCHAR(128) PRIMARY KEY,
-        raw_message TEXT NOT NULL,
-        source_group VARCHAR(100) NOT NULL,
-        sender_phone VARCHAR(30) NOT NULL,
-        suggested_type VARCHAR(20),
-        suggested_crop_type VARCHAR(50),
-        suggested_quantity NUMERIC,
-        suggested_price NUMERIC,
-        suggested_quantity_unit VARCHAR(20),
-        suggested_price_unit VARCHAR(20),
-        original_quantity NUMERIC,
-        original_price NUMERIC,
-        location VARCHAR(200),
-        payment_terms VARCHAR(100),
-        grain_quality VARCHAR(100),
-        status VARCHAR(20) NOT NULL,
-        owner_id VARCHAR(128) NOT NULL,
-        created_at TIMESTAMP NOT NULL DEFAULT NOW()
-      );
-    `);
-
-    // Ensure client_id and es_prospecto columns exist
-    await dbQuery(`
-      ALTER TABLE whatsapp_alerts ADD COLUMN IF NOT EXISTS client_id VARCHAR(128) REFERENCES clients(id) ON DELETE SET NULL;
-    `);
-    await dbQuery(`
-      ALTER TABLE whatsapp_alerts ADD COLUMN IF NOT EXISTS es_prospecto BOOLEAN DEFAULT TRUE;
-    `);
-    await dbQuery(`
-      ALTER TABLE whatsapp_alerts ADD COLUMN IF NOT EXISTS payment_terms VARCHAR(100);
-    `);
-    await dbQuery(`
-      ALTER TABLE whatsapp_alerts ADD COLUMN IF NOT EXISTS grain_quality VARCHAR(100);
-    `);
-
-    await dbQuery(`
-      CREATE TABLE IF NOT EXISTS match_negotiations (
-        id VARCHAR(128) PRIMARY KEY,
-        offer_id VARCHAR(128) NOT NULL REFERENCES opportunities(id) ON DELETE CASCADE,
-        demand_id VARCHAR(128) NOT NULL REFERENCES opportunities(id) ON DELETE CASCADE,
-        quantity_tn NUMERIC NOT NULL,
-        seller_price NUMERIC NOT NULL,
-        buyer_price NUMERIC NOT NULL,
-        commission_pct NUMERIC NOT NULL DEFAULT 2,
-        seller_response VARCHAR(20) NOT NULL DEFAULT 'pendiente',
-        buyer_response VARCHAR(20) NOT NULL DEFAULT 'pendiente',
-        status VARCHAR(40) NOT NULL DEFAULT 'esperando_confirmacion',
-        owner_id VARCHAR(128) NOT NULL,
-        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-        updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-        UNIQUE (offer_id, demand_id)
-      );
-    `);
-
-
-    // Deals
-    await dbQuery(`
-      CREATE TABLE IF NOT EXISTS deals (
-        id VARCHAR(128) PRIMARY KEY,
-        crop_type VARCHAR(50) NOT NULL,
-        seller_id VARCHAR(128),
-        buyer_id VARCHAR(128),
-        seller_name VARCHAR(150) NOT NULL,
-        buyer_name VARCHAR(150) NOT NULL,
-        quantity_tn NUMERIC NOT NULL,
-        price_seller NUMERIC NOT NULL,
-        price_buyer NUMERIC NOT NULL,
-        total_commission NUMERIC NOT NULL,
-        location VARCHAR(200),
-        owner_id VARCHAR(128) NOT NULL,
-        created_at TIMESTAMP NOT NULL DEFAULT NOW()
-      );
-    `);
-
-    // Ensure operational and financial columns exist in deals table
-    await dbQuery(`ALTER TABLE deals ADD COLUMN IF NOT EXISTS payment_terms VARCHAR(100);`);
-    await dbQuery(`ALTER TABLE deals ADD COLUMN IF NOT EXISTS grain_quality VARCHAR(100);`);
-    await dbQuery(`ALTER TABLE deals ADD COLUMN IF NOT EXISTS estimated_freight NUMERIC DEFAULT 0;`);
-    await dbQuery(`ALTER TABLE deals ADD COLUMN IF NOT EXISTS logistics_status VARCHAR(50) DEFAULT 'pendiente';`);
-    await dbQuery(`ALTER TABLE deals ADD COLUMN IF NOT EXISTS logistics_cupo VARCHAR(50);`);
-    await dbQuery(`ALTER TABLE deals ADD COLUMN IF NOT EXISTS logistics_cpe VARCHAR(50);`);
-    await dbQuery(`ALTER TABLE deals ADD COLUMN IF NOT EXISTS logistics_driver VARCHAR(150);`);
-    await dbQuery(`ALTER TABLE deals ADD COLUMN IF NOT EXISTS logistics_plate VARCHAR(50);`);
-    await dbQuery(`ALTER TABLE deals ADD COLUMN IF NOT EXISTS delivery_status VARCHAR(50) DEFAULT 'pendiente';`);
-    await dbQuery(`ALTER TABLE deals ADD COLUMN IF NOT EXISTS delivery_moisture NUMERIC;`);
-    await dbQuery(`ALTER TABLE deals ADD COLUMN IF NOT EXISTS delivery_weight_net NUMERIC;`);
-    await dbQuery(`ALTER TABLE deals ADD COLUMN IF NOT EXISTS delivery_ticket VARCHAR(50);`);
-    await dbQuery(`ALTER TABLE deals ADD COLUMN IF NOT EXISTS delivery_certificate VARCHAR(50);`);
-    await dbQuery(`ALTER TABLE deals ADD COLUMN IF NOT EXISTS liq_status VARCHAR(50) DEFAULT 'pendiente';`);
-    await dbQuery(`ALTER TABLE deals ADD COLUMN IF NOT EXISTS liq_lpg_number VARCHAR(50);`);
-    await dbQuery(`ALTER TABLE deals ADD COLUMN IF NOT EXISTS liq_drying_cost NUMERIC DEFAULT 0;`);
-    await dbQuery(`ALTER TABLE deals ADD COLUMN IF NOT EXISTS liq_cleaning_cost NUMERIC DEFAULT 0;`);
-    await dbQuery(`ALTER TABLE deals ADD COLUMN IF NOT EXISTS liq_freight_cost NUMERIC DEFAULT 0;`);
-    await dbQuery(`ALTER TABLE deals ADD COLUMN IF NOT EXISTS liq_tax_withheld NUMERIC DEFAULT 0;`);
-    await dbQuery(`ALTER TABLE deals ADD COLUMN IF NOT EXISTS liq_net_payout NUMERIC DEFAULT 0;`);
-    await dbQuery(`ALTER TABLE deals ADD COLUMN IF NOT EXISTS liq_invoice_number VARCHAR(50);`);
-    await dbQuery(`ALTER TABLE deals ADD COLUMN IF NOT EXISTS operation_status VARCHAR(50) DEFAULT 'abierta';`);
-
-
-    // Tasks
-    await dbQuery(`
-      CREATE TABLE IF NOT EXISTS tasks (
-        id VARCHAR(128) PRIMARY KEY,
-        task_title VARCHAR(250) NOT NULL,
-        client_id VARCHAR(128) REFERENCES clients(id) ON DELETE CASCADE,
-        client_name VARCHAR(150) NOT NULL,
-        due_date VARCHAR(20) NOT NULL,
-        crop_type VARCHAR(50) NOT NULL,
-        category VARCHAR(50) NOT NULL,
-        status VARCHAR(20) NOT NULL,
-        owner_id VARCHAR(128) NOT NULL,
-        created_at TIMESTAMP NOT NULL DEFAULT NOW()
-      );
-    `);
-
-    // Audit Logs
-    await dbQuery(`
-      CREATE TABLE IF NOT EXISTS audit_logs (
-        id VARCHAR(128) PRIMARY KEY,
-        user_id VARCHAR(128) NOT NULL,
-        action VARCHAR(250) NOT NULL,
-        details TEXT,
-        created_at TIMESTAMP NOT NULL DEFAULT NOW()
-      );
-    `);
-
-    // WhatsApp Templates
-    await dbQuery(`
-      CREATE TABLE IF NOT EXISTS whatsapp_templates (
-        id VARCHAR(128) PRIMARY KEY,
-        name VARCHAR(150) NOT NULL,
-        content TEXT NOT NULL,
-        owner_id VARCHAR(128) NOT NULL,
-        created_at TIMESTAMP NOT NULL DEFAULT NOW()
-      );
-    `);
-
-    // Pizarra Prices
-    await dbQuery(`
-      CREATE TABLE IF NOT EXISTS pizarra_prices (
-        id VARCHAR(128) PRIMARY KEY,
-        soja NUMERIC NOT NULL,
-        maiz NUMERIC NOT NULL,
-        trigo NUMERIC NOT NULL,
-        sorgo NUMERIC NOT NULL,
-        girasol NUMERIC NOT NULL,
-        source VARCHAR(250) NOT NULL,
-        created_at TIMESTAMP NOT NULL DEFAULT NOW()
-      );
-    `);
+    console.log('[DB] Applying canonical schema from schema.sql...');
+    await applyCanonicalSchema();
 
     // Populate default templates if empty
     if (isSimulated) {
@@ -729,18 +495,22 @@ export async function initializeDatabase() {
         `);
       }
 
-      // Ensure default admin / broker user exists in Postgres
-      const userCheck = await dbQuery('SELECT id FROM users WHERE LOWER(email) = $1', ['broker@agrosys.com']);
-      if (userCheck.rows.length === 0) {
-        const defaultHash = hashPassword('123456');
-        await dbQuery(
-          'INSERT INTO users (id, email, name, role, password_hash) VALUES ($1, $2, $3, $4, $5)',
-          ['dev_user_broker', 'broker@agrosys.com', 'Corredor AgroSys', 'broker', defaultHash]
-        );
-        console.log('[DB] Seeded default Postgres user: broker@agrosys.com / 123456');
+      // Default broker with 123456 only in development.
+      if (process.env.NODE_ENV !== 'production') {
+        const userCheck = await dbQuery('SELECT id FROM users WHERE LOWER(email) = $1', ['broker@agrosys.com']);
+        if (userCheck.rows.length === 0) {
+          const defaultHash = hashPassword('123456');
+          await dbQuery(
+            'INSERT INTO users (id, email, name, role, password_hash) VALUES ($1, $2, $3, $4, $5)',
+            ['dev_user_broker', 'broker@agrosys.com', 'Corredor AgroSys', 'broker', defaultHash]
+          );
+          console.log('[DB] Seeded default Postgres user: broker@agrosys.com / 123456');
+        } else {
+          const defaultHash = hashPassword('123456');
+          await dbQuery('UPDATE users SET password_hash = $1 WHERE LOWER(email) = $2 AND (password_hash IS NULL OR password_hash = \'\')', [defaultHash, 'broker@agrosys.com']);
+        }
       } else {
-        const defaultHash = hashPassword('123456');
-        await dbQuery('UPDATE users SET password_hash = $1 WHERE LOWER(email) = $2 AND (password_hash IS NULL OR password_hash = \'\')', [defaultHash, 'broker@agrosys.com']);
+        console.log('[DB] Skipping default broker password seed in production.');
       }
 
       // Seed Pizarra prices if empty
@@ -823,24 +593,6 @@ export async function initializeDatabase() {
           ON CONFLICT (id) DO NOTHING;
         `);
       }
-
-      // Create high-performance database indexes
-      await dbQuery(`
-        CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-        CREATE INDEX IF NOT EXISTS idx_clients_owner ON clients(owner_id);
-        CREATE INDEX IF NOT EXISTS idx_clients_status ON clients(status);
-        CREATE INDEX IF NOT EXISTS idx_opportunities_owner ON opportunities(owner_id);
-        CREATE INDEX IF NOT EXISTS idx_opportunities_crop_status ON opportunities(crop_type, status);
-        CREATE INDEX IF NOT EXISTS idx_opportunities_client ON opportunities(client_id);
-        CREATE INDEX IF NOT EXISTS idx_whatsapp_alerts_status ON whatsapp_alerts(status);
-        CREATE INDEX IF NOT EXISTS idx_whatsapp_alerts_client ON whatsapp_alerts(client_id);
-        CREATE INDEX IF NOT EXISTS idx_deals_owner ON deals(owner_id);
-        CREATE INDEX IF NOT EXISTS idx_deals_crop ON deals(crop_type);
-        CREATE INDEX IF NOT EXISTS idx_tasks_owner ON tasks(owner_id);
-        CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks(due_date);
-        CREATE INDEX IF NOT EXISTS idx_pizarra_created ON pizarra_prices(created_at DESC);
-        CREATE INDEX IF NOT EXISTS idx_audit_logs_created ON audit_logs(created_at DESC);
-      `);
 
     }
 

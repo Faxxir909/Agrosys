@@ -197,6 +197,7 @@ async function processNegotiationResponse(rawMessage: string, senderPhone: strin
   const result = await dbQuery(
     `SELECT n.id, n.offer_id as "offerId", n.demand_id as "demandId",
             n.seller_response as "sellerResponse", n.buyer_response as "buyerResponse",
+            n.owner_id as "ownerId",
             seller.phone as "sellerPhone", buyer.phone as "buyerPhone"
      FROM match_negotiations n
      JOIN opportunities offer_opp ON offer_opp.id = n.offer_id
@@ -243,8 +244,20 @@ async function processNegotiationResponse(rawMessage: string, senderPhone: strin
   );
 
   console.log(`[WA NEGOTIATION] ${isSeller ? 'Seller' : 'Buyer'} response registered as ${response} for ${negotiation.id}.`);
-  if (onAlertAddedCallback) onAlertAddedCallback();
+  if (onAlertAddedCallback) onAlertAddedCallback(negotiation.ownerId);
   return true;
+}
+
+async function resolveIncomingAlertOwnerId(): Promise<string> {
+  if (process.env.NODE_ENV !== 'production') return 'GLOBAL';
+  const configured = process.env.WHATSAPP_OWNER_ID?.trim();
+  if (configured) return configured;
+  try {
+    const result = await dbQuery('SELECT id FROM users ORDER BY created_at ASC LIMIT 1');
+    return result.rows[0]?.id || '';
+  } catch {
+    return '';
+  }
 }
 
 export async function processIncomingMessage(rawMessage: string, senderPhone: string, sourceGroup: string = 'WhatsApp Baileys', messageId?: string) {
@@ -480,6 +493,14 @@ Mensaje: "${rawMessage}"`;
 
   // 6. Save to database
   try {
+    const ownerId = await resolveIncomingAlertOwnerId();
+    if (!ownerId) {
+      console.error('[WA HANDLER] No hay owner para persistir la alerta en producción. Defina WHATSAPP_OWNER_ID.');
+      messageDiagnostics.failed++;
+      messageDiagnostics.lastResult = 'Mensaje recibido pero no se pudo asignar un dueño.';
+      return;
+    }
+
     const alertData = {
       id: alertId,
       rawMessage,
@@ -497,7 +518,7 @@ Mensaje: "${rawMessage}"`;
       paymentTerms,
       grainQuality,
       status: 'nueva',
-      ownerId: 'GLOBAL',
+      ownerId,
       createdAt: new Date(),
       clientId,
       esProspecto
@@ -517,7 +538,7 @@ Mensaje: "${rawMessage}"`;
         [
           alertId, rawMessage, sourceGroup, senderPhone, suggestedType, suggestedCropType,
           suggestedQuantity, suggestedPrice, suggestedQuantityUnit, suggestedPriceUnit,
-          originalQuantity, originalPrice, alertData.location, 'nueva', 'GLOBAL', alertData.createdAt,
+          originalQuantity, originalPrice, alertData.location, 'nueva', ownerId, alertData.createdAt,
           clientId, esProspecto, paymentTerms, grainQuality
         ]
       );
@@ -556,9 +577,9 @@ Mensaje: "${rawMessage}"`;
       }
     }
 
-    // Fire callback to notify Socket.io clients
+    // Fire callback to notify Socket.io clients in the owner room
     if (onAlertAddedCallback) {
-      onAlertAddedCallback();
+      onAlertAddedCallback(ownerId);
     }
 
     // Try sending a WhatsApp auto-reply confirmation if valid phone
@@ -598,7 +619,7 @@ Mensaje: "${rawMessage}"`;
   }
 }
 
-let onAlertAddedCallback: (() => void) | null = null;
-export function registerOnAlertAdded(callback: () => void) {
+let onAlertAddedCallback: ((ownerId?: string) => void) | null = null;
+export function registerOnAlertAdded(callback: (ownerId?: string) => void) {
   onAlertAddedCallback = callback;
 }
