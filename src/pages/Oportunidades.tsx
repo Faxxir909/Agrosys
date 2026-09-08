@@ -11,6 +11,7 @@ import { format } from 'date-fns';
 import { WhatsappQRSetup } from '../components/WhatsappQRSetup';
 import { OpportunityReviewModal } from '../components/OpportunityReviewModal';
 import { OpportunityFormModal, type OpportunityFormValues } from '../components/opportunities/OpportunityFormModal';
+import { OpportunityKanban } from '../components/opportunities/OpportunityKanban';
 
 const CROP_COLORS: Record<string, { bg: string; text: string; border: string; emoji: string }> = {
   soja:    { bg: 'bg-amber-500/10',   text: 'text-amber-400',   border: 'border-amber-500/30',  emoji: '🌱' },
@@ -30,7 +31,6 @@ export function Oportunidades() {
 
   const [activeTab, setActiveTab] = useState<'ofertas' | 'demandas' | 'whatsapp' | 'matches'>('ofertas');
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('kanban');
-  const [draggedOverColumn, setDraggedOverColumn] = useState<string | null>(null);
   const [reviewAlert, setReviewAlert] = useState<any | null>(null);
   const [lostDialog, setLostDialog] = useState({ isOpen: false, id: '', reason: '' });
 
@@ -600,16 +600,12 @@ export function Oportunidades() {
         </div>
 
         {viewMode === 'kanban' ? (
-          <KanbanBoardView
-            filteredOpps={filteredOpps}
+          <OpportunityKanban
+            opportunities={filteredOpps}
             clients={clients}
-            deleteOpp={deleteOpp}
-            toggleStatus={toggleStatus}
-            handleStatusChange={handleStatusChange}
-            formatNumber={formatNumber}
-            draggedOverColumn={draggedOverColumn}
-            setDraggedOverColumn={setDraggedOverColumn}
-            handleOpenWaModal={handleOpenWaModal}
+            onStatusChange={handleStatusChange}
+            onDelete={deleteOpp}
+            onOpenWhatsApp={handleOpenWaModal}
           />
         ) : (
           <div>
@@ -1469,260 +1465,4 @@ function WhatsappAlertsView({ clients, opportunities = [], onConvert, setConfirm
       </div>
     </div>
   )
-}
-
-function KanbanBoardView({
-  filteredOpps,
-  clients,
-  deleteOpp,
-  toggleStatus,
-  handleStatusChange,
-  formatNumber,
-  draggedOverColumn,
-  setDraggedOverColumn,
-  handleOpenWaModal
-}: {
-  filteredOpps: any[];
-  clients: any[];
-  deleteOpp: (id: string) => void;
-  toggleStatus: (opp: any) => void;
-  handleStatusChange: (id: string, newStatus: string) => Promise<void>;
-  formatNumber: (num: number) => string;
-  draggedOverColumn: string | null;
-  setDraggedOverColumn: (col: string | null) => void;
-  handleOpenWaModal: (phone: string, id: string, name: string, context?: any) => void;
-}) {
-  const [selectedMobileCol, setSelectedMobileCol] = useState<string>('abierta');
-
-  const columns = [
-    { id: 'abierta',                name: '📂 Abiertas',              shortName: '📂 Abiertas', borderClass: 'border-zinc-800 bg-zinc-800/10',       headerClass: 'text-zinc-300' },
-    { id: 'negociacion',            name: '🤝 En Negociación',        shortName: '🤝 Negociac.', borderClass: 'border-amber-500/30 bg-amber-500/5',   headerClass: 'text-amber-300' },
-    { id: 'esperando_confirmacion', name: '⏳ Esp. Confirmación',     shortName: '⏳ Confirm.',   borderClass: 'border-sky-500/30 bg-sky-500/5',       headerClass: 'text-sky-300' },
-    { id: 'ganada',                 name: '🏆 Ganadas',               shortName: '🏆 Ganadas',  borderClass: 'border-green-500/30 bg-green-500/5',   headerClass: 'text-green-300' },
-    { id: 'perdida',                name: '❌ Perdidas',              shortName: '❌ Perdidas', borderClass: 'border-red-500/30 bg-red-500/5',       headerClass: 'text-red-300' },
-    { id: 'vencida',                name: '⌛ Vencidas',              shortName: '⌛ Vencidas', borderClass: 'border-zinc-700 bg-zinc-700/5',        headerClass: 'text-zinc-500' }
-  ] as const;
-
-  const getColumnItems = (statusId: string) => {
-    return filteredOpps.filter(o => {
-      if (statusId === 'abierta') {
-        return o.status === 'abierta' || (!o.status);
-      }
-      if (statusId === 'negociacion') {
-        return o.status === 'negociacion';
-      }
-      if (statusId === 'esperando_confirmacion') {
-        return o.status === 'esperando_confirmacion';
-      }
-      if (statusId === 'ganada') {
-        return o.status === 'ganada';
-      }
-      if (statusId === 'perdida') {
-        return o.status === 'perdida';
-      }
-      if (statusId === 'vencida') {
-        return o.status === 'vencida';
-      }
-      return false;
-    });
-  };
-
-  return (
-    <div className="w-full max-w-full min-w-0 space-y-3 p-2 sm:p-4">
-      {/* Mobile Column Switcher Pills */}
-      <div className="mobile-scroll-row sm:hidden flex gap-1.5 pb-1.5 scrollbar-none px-1">
-        <button
-          type="button"
-          onClick={() => setSelectedMobileCol('all')}
-          className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
-            selectedMobileCol === 'all'
-              ? 'bg-zinc-200 text-black font-black shadow'
-              : 'bg-zinc-800/80 text-zinc-400 border border-zinc-700/60'
-          }`}
-        >
-          <span>Todos</span>
-          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/20 font-mono">
-            {filteredOpps.length}
-          </span>
-        </button>
-        {columns.map(col => {
-          const count = getColumnItems(col.id).length;
-          const isSelected = selectedMobileCol === col.id;
-          return (
-            <button
-              key={col.id}
-              type="button"
-              onClick={() => setSelectedMobileCol(col.id)}
-              className={`px-2.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
-                isSelected
-                  ? 'bg-green-500 text-black font-black shadow-lg shadow-green-500/20'
-                  : 'bg-zinc-800/80 text-zinc-400 border border-zinc-700/60'
-              }`}
-            >
-              <span>{col.shortName}</span>
-              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
-                isSelected ? 'bg-black/30 text-black' : 'bg-zinc-900 text-zinc-400'
-              }`}>
-                {count}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Kanban Columns Grid / Horizontal Slider */}
-      <div className="mobile-scroll-row flex gap-4 min-h-[500px] scrollbar-none items-stretch select-none snap-x snap-mandatory pb-4">
-        {columns.map(col => {
-          const items = getColumnItems(col.id);
-          const isOver = draggedOverColumn === col.id;
-          const isHiddenOnMobile = selectedMobileCol !== 'all' && selectedMobileCol !== col.id;
-
-          return (
-            <div
-              key={col.id}
-              onDragOver={(e) => {
-                e.preventDefault();
-                if (draggedOverColumn !== col.id) {
-                  setDraggedOverColumn(col.id);
-                }
-              }}
-              onDragLeave={() => {
-                setDraggedOverColumn(null);
-              }}
-              onDrop={async (e) => {
-                e.preventDefault();
-                setDraggedOverColumn(null);
-                const id = e.dataTransfer.getData('text/plain');
-                if (id) {
-                  await handleStatusChange(id, col.id);
-                }
-              }}
-              className={`w-[calc(100vw-3.75rem)] max-w-[22rem] sm:w-76 shrink-0 border rounded-2xl p-3.5 flex-col transition-all duration-200 snap-start ${isHiddenOnMobile ? 'hidden sm:flex' : 'flex'} ${col.borderClass} ${isOver ? 'ring-2 ring-green-500/60 scale-[1.01] border-green-500/50 shadow-lg shadow-green-500/5' : ''}`}
-            >
-              <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-zinc-800/60">
-                <h4 className={`font-black text-xs uppercase tracking-widest ${(col as any).headerClass}`}>{col.name}</h4>
-                <span className="bg-zinc-900 border border-zinc-800 text-zinc-400 text-[10px] px-1.5 py-0.5 rounded-md font-mono font-bold">
-                  {items.length}
-                </span>
-              </div>
-
-              <div className="flex-1 flex flex-col gap-3 overflow-y-auto max-h-[600px] pr-1.5 scrollbar-thin">
-                {items.length === 0 ? (
-                  <div className="h-32 flex flex-col items-center justify-center border-2 border-dashed border-zinc-800 rounded-xl text-zinc-550 text-xs gap-1.5">
-                    <span>📥</span>
-                    <span>Sin operaciones aquí</span>
-                  </div>
-                ) : (
-                  items.map(opp => {
-                    const client = clients.find(c => c.id === opp.clientId);
-                    const clientName = client?.name || 'Desconocido';
-                    const clientPhone = client?.phone;
-                    const cs = getCropStyle(opp.cropType);
-                    const isOferta = opp.type === 'oferta';
-                    
-                    return (
-                      <div
-                        key={opp.id}
-                        draggable
-                        onDragStart={(e) => {
-                          e.dataTransfer.setData('text/plain', opp.id);
-                          e.dataTransfer.effectAllowed = 'move';
-                        }}
-                        className="bg-[#1f1f1f] hover:bg-[#252525] border border-[#2e2e2e] hover:border-[#3a3a3a] rounded-xl p-3.5 transition-all duration-150 cursor-grab active:cursor-grabbing shadow-md relative group"
-                      >
-                        <div className="flex items-center justify-between mb-2.5">
-                          <span className="text-[9px] text-zinc-600 font-mono">
-                            {opp.createdAt ? format(new Date(opp.createdAt), 'dd/MM/yy') : '-'}
-                          </span>
-                          <span className={`text-[9px] uppercase font-black px-2 py-0.5 rounded-md border ${
-                            isOferta
-                              ? 'bg-green-500/10 text-green-400 border-green-500/20'
-                              : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
-                          }`}>
-                            {isOferta ? '↑ Venta' : '↓ Compra'}
-                          </span>
-                        </div>
-
-                        <h5 className="font-black text-xs text-white truncate mb-1.5">{clientName}</h5>
-
-                        <div className="flex items-center gap-1.5 mb-2.5">
-                          <span className={`inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-md border ${cs.bg} ${cs.text} ${cs.border}`}>
-                            {cs.emoji} {opp.cropType}
-                          </span>
-                          <span className="text-[9px] font-bold text-zinc-400 bg-zinc-900 border border-zinc-800 px-2 py-0.5 rounded-md font-mono">
-                            {formatNumber(opp.quantity_tn)} TN
-                          </span>
-                        </div>
-
-                        <div className={`w-full rounded-lg px-3 py-2 ${
-                          isOferta ? 'bg-green-500/8 border border-green-500/15' : 'bg-blue-500/8 border border-blue-500/15'
-                        }`}>
-                          <p className={`text-xs font-black font-mono ${isOferta ? 'text-green-400' : 'text-blue-400'}`}>
-                            {opp.priceMode === 'a_negociar' ? 'A negociar' : `$${formatNumber(opp.price_usd)} USD/tn`}
-                          </p>
-                          {opp.location && (
-                            <p className="text-[9px] text-zinc-600 mt-0.5 truncate">📍 {opp.location}</p>
-                          )}
-                        </div>
-
-                        {(opp.nextAction || opp.expiresAt || opp.lostReason) && (
-                          <div className="space-y-0.5 text-[9px] text-zinc-500 border-t border-zinc-800 mt-2.5 pt-2">
-                            {opp.nextAction && <p className="truncate"><span className="text-zinc-600">▶</span> {opp.nextAction}</p>}
-                            {opp.expiresAt && <p><span className="text-zinc-600">⏱</span> Vence {format(new Date(opp.expiresAt), 'dd/MM/yy')}</p>}
-                            {opp.lostReason && <p className="text-red-400"><span className="text-zinc-600">✕</span> {opp.lostReason}</p>}
-                          </div>
-                        )}
-
-                        {/* Mobile Status Mover & Quick Action Bar */}
-                        <div className="mt-3 pt-2.5 border-t border-zinc-800/80 flex items-center justify-between gap-2">
-                          <select
-                            value={opp.status || 'abierta'}
-                            onChange={(e) => handleStatusChange(opp.id, e.target.value)}
-                            className="bg-zinc-900 border border-zinc-700/80 text-zinc-300 text-[10px] rounded-lg px-2 py-1 outline-none font-mono cursor-pointer flex-1 max-w-[140px]"
-                          >
-                            <option value="abierta">📂 Abierta</option>
-                            <option value="negociacion">🤝 Negociación</option>
-                            <option value="esperando_confirmacion">⏳ Confirmación</option>
-                            <option value="ganada">🏆 Ganada</option>
-                            <option value="perdida">❌ Perdida</option>
-                            <option value="vencida">⌛ Vencida</option>
-                          </select>
-
-                          <div className="flex items-center gap-1">
-                            {clientPhone && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleOpenWaModal(clientPhone, opp.clientId, clientName, {
-                                    cropType: opp.cropType, quantity_tn: opp.quantity_tn,
-                                    price_usd: opp.price_usd, location: opp.location
-                                  });
-                                }}
-                                className="p-1.5 text-green-400 bg-green-500/10 hover:bg-green-500/20 rounded-lg transition-colors cursor-pointer border border-green-500/20"
-                                title="WhatsApp"
-                              >
-                                <Phone className="w-3 h-3" />
-                              </button>
-                            )}
-                            <button
-                              onClick={(e) => { e.stopPropagation(); deleteOpp(opp.id); }}
-                              className="p-1.5 text-zinc-400 bg-zinc-800 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer border border-zinc-700 hover:border-red-500/20"
-                              title="Eliminar"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </button>
-                          </div>
-                        </div>
-
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
 }
