@@ -21,9 +21,13 @@ services:
           name: agrosys-db
           property: connectionString
       - key: JWT_SECRET
-        value: agrosys_super_secure_production_jwt_key_2026_demo!
+        sync: false
       - key: WHATSAPP_VERIFY_TOKEN
-        value: token_seguro_agrosys_wa_2026
+        sync: false
+      - key: WHATSAPP_APP_SECRET
+        sync: false
+      - key: WHATSAPP_OWNER_ID
+        sync: false
       - key: GEMINI_API_KEY
         sync: false
 

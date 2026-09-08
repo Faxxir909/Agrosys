@@ -191,13 +191,29 @@ CREATE TABLE IF NOT EXISTS pizarra_prices (
 );
 
 -- =================================================================
--- 2. Datos Iniciales (Seeds)
+-- 2. Índices
 -- =================================================================
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_unique ON users (email);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);
+CREATE INDEX IF NOT EXISTS idx_clients_owner ON clients (owner_id);
+CREATE INDEX IF NOT EXISTS idx_clients_status ON clients (status);
+CREATE INDEX IF NOT EXISTS idx_opportunities_owner ON opportunities (owner_id);
+CREATE INDEX IF NOT EXISTS idx_opportunities_crop_status ON opportunities (crop_type, status);
+CREATE INDEX IF NOT EXISTS idx_opportunities_client ON opportunities (client_id);
+CREATE INDEX IF NOT EXISTS idx_whatsapp_alerts_status ON whatsapp_alerts (status);
+CREATE INDEX IF NOT EXISTS idx_whatsapp_alerts_client ON whatsapp_alerts (client_id);
+CREATE INDEX IF NOT EXISTS idx_deals_owner ON deals (owner_id);
+CREATE INDEX IF NOT EXISTS idx_deals_crop ON deals (crop_type);
+CREATE INDEX IF NOT EXISTS idx_tasks_owner ON tasks (owner_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks (due_date);
+CREATE INDEX IF NOT EXISTS idx_pizarra_created ON pizarra_prices (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_created ON audit_logs (created_at DESC);
 
--- Usuario inicial (broker@agrosys.com / 123456)
-INSERT INTO users (id, email, name, role, password_hash)
-VALUES ('dev_user_broker', 'broker@agrosys.com', 'Corredor AgroSys', 'broker', 'v2:1234567890abcdef:398bf35a4aa508be65cfbcbbcf2d813ecbf610e20601934988e0b6ec86f5fa5cefc6ca1bf482e16d418721bfbe55e1db1a9f5d37803a67733f37b988f5be57d5')
-ON CONFLICT (id) DO NOTHING;
+-- =================================================================
+-- 3. Datos iniciales no secretos
+-- El usuario broker@agrosys.com / 123456 NO se siembra aquí.
+-- Solo se crea en initializeDatabase() si NODE_ENV !== 'production'.
+-- =================================================================
 
 -- Plantillas de WhatsApp
 INSERT INTO whatsapp_templates (id, name, content, owner_id)
@@ -205,10 +221,4 @@ VALUES
   ('default_boleto', 'Confirmación de Boleto', 'Hola {{nombre}}, confirmamos la operación de {{toneladas}} TN de {{grano}} a un precio de {{precio}} USD/tn. Saludos, AgroSys.', 'GLOBAL'),
   ('default_alerta', 'Alerta de Precio', 'Estimado/a {{nombre}}, le informamos que el valor del grano {{grano}} alcanzó los {{precio}} USD/tn en Rosario. ¿Desea fijar venta?', 'GLOBAL'),
   ('default_saludo', 'Saludo Comercial', 'Hola {{nombre}}, ¿cómo está? Nos comunicamos de la mesa de AgroSys para consultarle si tiene ofertas de venta o demandas para la campaña.', 'GLOBAL')
-ON CONFLICT (id) DO NOTHING;
-
--- Pizarra de Precios
-INSERT INTO pizarra_prices (id, soja, maiz, trigo, sorgo, girasol, source, created_at)
-VALUES 
-  ('pizarra_actual', 285, 162, 198, 145, 312, 'Cámara Arbitral de Rosario / MATba - USD de referencia oficial', NOW())
 ON CONFLICT (id) DO NOTHING;

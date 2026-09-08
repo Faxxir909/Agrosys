@@ -10,6 +10,8 @@ import { useTasks } from '../hooks/useTasks';
 import { api } from '../lib/api';
 import { WhatsappTemplateModal } from '../components/WhatsappTemplateModal';
 import { CSVMappingModal } from '../components/CSVMappingModal';
+import { ClientTable, type ClientListItem } from '../components/clients/ClientTable';
+import { ClientFormModal, type ClientFormValues } from '../components/clients/ClientFormModal';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell
 } from 'recharts';
@@ -26,8 +28,8 @@ export function Clientes() {
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [viewingCustomerDetails, setViewingCustomerDetails] = useState(false);
   const [activeTab, setActiveTab] = useState<'ficha' | 'granos' | 'bitacora' | 'tareas'>('ficha');
-  const [isAddingNewCustomer, setIsAddingNewCustomer] = useState(false);
-  const [isEditingCustomer, setIsEditingCustomer] = useState(false);
+  const [isClientFormOpen, setIsClientFormOpen] = useState(false);
+  const [clientFormInitial, setClientFormInitial] = useState<Partial<ClientFormValues> | null>(null);
   const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -142,7 +144,7 @@ export function Clientes() {
   // Calendar Grid Year & Month states
   const [currentYear, setCurrentYear] = useState<number>(new Date().getFullYear());
   const [currentMonth, setCurrentMonth] = useState<number>(new Date().getMonth());
-  const [isMobileFiltersExpanded, setIsMobileFiltersExpanded] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
 
   // Load interactions for the selected customer
   useEffect(() => {
@@ -182,120 +184,11 @@ export function Clientes() {
     return allTasks.filter((t: any) => t.clientId === selectedCustomer.id);
   }, [allTasks, selectedCustomer]);
 
-  const defaultFormData = {
-    name: '', anoFiscal: 'FY2425', relevado: 'No', tipoCliente: 'Prospecto', zona: '', categoria: 'Productor',
-    hectareasPropias: '', hectareasAlquiladas: '', hasGanaderia: '',
-    hasSoja: '', rtoSjHa: '', porcEntregaCosechaSoja: '', precioObjetivoSoja: '',
-    hasMaiz: '', rtoMzHa: '', porcEntregaCosechaMaiz: '', precioObjetivoMaiz: '',
-    hasSorgo: '', rtoSgHa: '', porcEntregaCosechaSorgo: '', precioObjetivoSorgo: '',
-    hasGirasol: '', rtoGsHa: '', porcEntregaCosechaGirasol: '', precioObjetivoGirasol: '',
-    hasTrigo: '', rtoTgHa: '', porcEntregaCosechaTrigo: '', precioObjetivoTrigo: '',
-    porcDisponible: '', porcFwd: '', porcA_Fijar: '',
-    porcSoloDirectoPuerto: '', porcAcopio: '', porcSiloBolsa: '',
-    distanciaPlantaKm: '', camiones: '', atributoCompetenciaGrano: '', atributoNuestroGrano: '',
-    comprasPreCampana: false, productosPremium: false,
-    atributoCompetenciaInsumos: '', atributoNuestroInsumos: '',
-    potencialAgroq: '', budgetAgroq: '', potencialFerti: '', budgetFerti: '',
-    fechaUltimoContacto: '', proximaAccion: '', fechaProximosPasos: '',
-    observaciones: '', type: 'productor', phone: '', email: '', cuit: '', status: 'activo'
-  };
-
-  const [formData, setFormData] = useState<any>(defaultFormData);
-
-  const [formProvincia, setFormProvincia] = useState('');
-  const [formLocalidad, setFormLocalidad] = useState('');
-  const [customLocalidad, setCustomLocalidad] = useState('');
-
-  // Synchronize dropdown structures when the form is opened or loaded
-  React.useEffect(() => {
-    if (isAddingNewCustomer || isEditingCustomer) {
-      const zonaStr = formData.zona || '';
-      
-      // Try to parse "Locality, Province" or "Locality (Province)"
-      let parsedProv = '';
-      let parsedLoc = '';
-      
-      const splitComma = zonaStr.split(',');
-      if (splitComma.length >= 2) {
-        const potentialLoc = splitComma[0].trim();
-        const potentialProv = splitComma[1].trim();
-        
-        // Check if potentialProv is a valid province
-        const foundProv = Object.keys(ARGENTINE_REGIONS).find(
-          p => p.toLowerCase() === potentialProv.toLowerCase()
-        );
-        if (foundProv) {
-          parsedProv = foundProv;
-          parsedLoc = potentialLoc;
-        }
-      }
-      
-      // If we didn't match via comma, let's scan all regions to find the locality
-      if (!parsedProv && zonaStr) {
-        const cleanZona = zonaStr.toLowerCase().trim();
-        for (const [prov, localities] of Object.entries(ARGENTINE_REGIONS)) {
-          const matchedLoc = localities.find(
-            loc => loc.toLowerCase() === cleanZona || cleanZona.includes(loc.toLowerCase())
-          );
-          if (matchedLoc) {
-            parsedProv = prov;
-            parsedLoc = matchedLoc;
-            break;
-          }
-        }
-      }
-
-      // If we STILL couldn't find a matching province but have a string, support custom
-      if (zonaStr && !parsedProv) {
-        setFormProvincia('Otra');
-        setFormLocalidad('Otro');
-        setCustomLocalidad(zonaStr);
-      } else if (parsedProv) {
-        setFormProvincia(parsedProv);
-        // Check if the parsed locality is indeed in the predefined list
-        const exists = ARGENTINE_REGIONS[parsedProv]?.includes(parsedLoc);
-        if (exists) {
-          setFormLocalidad(parsedLoc);
-          setCustomLocalidad('');
-        } else {
-          setFormLocalidad('Otro');
-          setCustomLocalidad(parsedLoc);
-        }
-      } else {
-        // Reset
-        setFormProvincia('');
-        setFormLocalidad('');
-        setCustomLocalidad('');
-      }
-    }
-  }, [isAddingNewCustomer, isEditingCustomer, formData.zona]);
-
-  const updateZonaField = (prov: string, loc: string, custom: string) => {
-    let finalZona = '';
-    if (prov === 'Otra') {
-      finalZona = custom.trim();
-    } else if (prov) {
-      if (loc === 'Otro') {
-        finalZona = custom.trim() ? `${custom.trim()}, ${prov}` : prov;
-      } else if (loc) {
-        finalZona = `${loc}, ${prov}`;
-      } else {
-        finalZona = prov;
-      }
-    }
-    
-    setFormData((prev: any) => ({
-      ...prev,
-      zona: finalZona
-    }));
-  };
-
   const handleBackToList = () => {
     setViewingCustomerDetails(false);
     setSelectedCustomer(null);
-    setIsAddingNewCustomer(false);
-    setIsEditingCustomer(false);
-    setFormData(defaultFormData);
+    setIsClientFormOpen(false);
+    setClientFormInitial(null);
     setActiveTab('ficha');
   };
 
@@ -554,40 +447,30 @@ export function Clientes() {
     return parsedData;
   };
 
-  const handleAddCustomer = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.name) {
+  const handleSubmitClientForm = async (values: ClientFormValues) => {
+    if (!values.name) {
       addToast('El nombre es obligatorio.', 'error');
-      return;
+      throw new Error('Nombre obligatorio');
     }
     try {
-      const customerToAdd = parseNumericFields(formData);
-      await api.clients.create(customerToAdd);
-      addToast('Cliente añadido correctamente!', 'success');
-      handleBackToList();
+      const parsed = parseNumericFields(values);
+      if (clientFormInitial?.id) {
+        delete parsed.id;
+        delete parsed.createdAt;
+        delete parsed.ownerId;
+        const updated = await api.clients.update(clientFormInitial.id, parsed);
+        addToast('Cliente actualizado correctamente!', 'success');
+        if (selectedCustomer?.id === clientFormInitial.id) {
+          setSelectedCustomer(updated);
+        }
+      } else {
+        await api.clients.create(parsed);
+        addToast('Cliente añadido correctamente!', 'success');
+      }
     } catch (err) {
       console.error(err);
-      addToast('Error al agregar cliente.', 'error');
-    }
-  };
-
-  const handleUpdateCustomer = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const customerToUpdate = parseNumericFields(formData);
-      // Remove fields that should not be updated
-      delete customerToUpdate.id;
-      delete customerToUpdate.createdAt;
-      delete customerToUpdate.ownerId;
-
-      const updated = await api.clients.update(selectedCustomer.id, customerToUpdate);
-      addToast('Cliente actualizado correctamente!', 'success');
-      setSelectedCustomer(updated);
-      setIsEditingCustomer(false);
-      setViewingCustomerDetails(true);
-    } catch (err) {
-      console.error(err);
-      addToast('Error al actualizar el cliente.', 'error');
+      addToast(clientFormInitial?.id ? 'Error al actualizar el cliente.' : 'Error al agregar cliente.', 'error');
+      throw err;
     }
   };
 
@@ -601,14 +484,6 @@ export function Clientes() {
       console.error(err);
       addToast('Error al eliminar cliente.', 'error');
     }
-  };
-
-  const handleFormChange = (e: any) => {
-    const { name, value, type, checked } = e.target;
-    setFormData((prev: any) => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
   };
 
   const chartData = useMemo(() => {
@@ -789,6 +664,16 @@ export function Clientes() {
     );
   }, [searchTerm, filterProvincia, filterLocalidad, filterTipoCliente, filterCategoria, filterAnoFiscal, filterRelevado, filterStatus, sortBy, sortOrder]);
 
+  const advancedFilterCount = [
+    filterProvincia,
+    filterLocalidad,
+    filterTipoCliente,
+    filterCategoria,
+    filterAnoFiscal,
+    filterRelevado,
+    filterStatus,
+  ].filter(Boolean).length;
+
   if (loading) return (
     <div className="flex items-center justify-center h-[60vh]">
       <div className="font-mono text-xs text-gray-500 animate-pulse uppercase tracking-widest">Cargando Clientes...</div>
@@ -832,7 +717,7 @@ export function Clientes() {
           </p>
         </div>
         
-        {!viewingCustomerDetails && !isAddingNewCustomer && !isEditingCustomer && mainView === 'clientes' && (
+        {!viewingCustomerDetails && mainView === 'clientes' && (
           <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 sm:gap-3 w-full md:w-auto">
             {/* Importar CSV */}
             <button 
@@ -854,8 +739,8 @@ export function Clientes() {
 
             <button 
               onClick={() => {
-                setFormData(defaultFormData);
-                setIsAddingNewCustomer(true);
+                setClientFormInitial(null);
+                setIsClientFormOpen(true);
               }}
               className="col-span-2 sm:col-span-1 w-full min-h-11 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 font-medium text-xs transition-colors shadow-sm"
             >
@@ -866,7 +751,7 @@ export function Clientes() {
         )}
       </div>
 
-      {(viewingCustomerDetails || isAddingNewCustomer || isEditingCustomer) ? (
+      {viewingCustomerDetails && selectedCustomer ? (
         <div className="bg-[#1e1e1e] border border-[#333] rounded-2xl p-4 sm:p-6 shadow-sm overflow-hidden relative min-w-0">
           <button 
             onClick={handleBackToList}
@@ -875,7 +760,7 @@ export function Clientes() {
             <X className="w-5 h-5" />
           </button>
           
-          {viewingCustomerDetails && !isEditingCustomer && selectedCustomer && (
+          {viewingCustomerDetails && selectedCustomer && (
             <div className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
               
               {/* Header con Perfil */}
@@ -906,9 +791,8 @@ export function Clientes() {
                     </button>
                   )}
                   <button onClick={() => {
-                    setFormData({ ...defaultFormData, ...selectedCustomer });
-                    setIsEditingCustomer(true);
-                    setViewingCustomerDetails(false);
+                    setClientFormInitial(selectedCustomer);
+                    setIsClientFormOpen(true);
                   }} className="px-4 py-2 bg-[#2a2a2a] hover:bg-[#333] border border-[#444] text-white rounded-lg flex items-center gap-2 font-medium text-xs transition-colors">
                     <Settings2 className="w-4 h-4 text-gray-400" /> Editar Ficha
                   </button>
@@ -1455,250 +1339,6 @@ export function Clientes() {
             </div>
           )}
 
-          {(isAddingNewCustomer || isEditingCustomer) && (
-            <div className="animate-in fade-in zoom-in-95 duration-200">
-              <div className="border-b border-[#333] pb-6 mb-6">
-                <h2 className="text-2xl font-bold text-white">{isEditingCustomer ? 'Editar Cliente' : 'Nuevo Cliente Agropecuario'}</h2>
-                <p className="text-gray-400 mt-1">Completa o actualiza la ficha del cliente.</p>
-              </div>
-
-              <form onSubmit={isEditingCustomer ? handleUpdateCustomer : handleAddCustomer} className="space-y-8">
-                
-                {/* 1. Datos del Cliente */}
-                <div className="bg-[#252525] p-6 rounded-xl border border-[#333]">
-                  <h3 className="text-lg font-bold text-white mb-4 border-b border-[#333] pb-2">1. Datos Básicos y Contacto</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="md:col-span-2">
-                       <label className="block text-sm font-medium text-gray-400 mb-1">Nombre / Razón Social <span className="text-red-500">*</span></label>
-                       <input required type="text" name="name" value={formData.name} onChange={handleFormChange} className="w-full bg-[#1e1e1e] border border-[#444] rounded-lg px-4 py-2.5 text-white focus:border-green-500 outline-none" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-400 mb-1">CUIT</label>
-                      <input type="text" name="cuit" value={formData.cuit || ''} onChange={handleFormChange} className="w-full bg-[#1e1e1e] border border-[#444] rounded-lg px-4 py-2.5 text-white focus:border-green-500 outline-none" placeholder="Ej: 20-12345678-9" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-400 mb-1">Teléfono</label>
-                      <input type="tel" name="phone" value={formData.phone || ''} onChange={handleFormChange} className="w-full bg-[#1e1e1e] border border-[#444] rounded-lg px-4 py-2.5 text-white focus:border-green-500 outline-none" placeholder="Ej: +54 9 11..." />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-400 mb-1">Email</label>
-                      <input type="email" name="email" value={formData.email || ''} onChange={handleFormChange} className="w-full bg-[#1e1e1e] border border-[#444] rounded-lg px-4 py-2.5 text-white focus:border-green-500 outline-none" placeholder="correo@ejemplo.com" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-400 mb-1">Estado</label>
-                      <select name="status" value={formData.status || 'activo'} onChange={handleFormChange} className="w-full bg-[#1e1e1e] border border-[#444] rounded-lg px-4 py-2.5 text-white focus:border-green-500 outline-none">
-                        <option value="activo">Activo</option>
-                        <option value="inactivo">Inactivo</option>
-                        <option value="suspendido">Suspendido</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-400 mb-1">Año Fiscal</label>
-                      <select name="anoFiscal" value={formData.anoFiscal} onChange={handleFormChange} className="w-full bg-[#1e1e1e] border border-[#444] rounded-lg px-4 py-2.5 text-white focus:border-green-500 outline-none">
-                        <option value="FY2324">FY2324</option><option value="FY2425">FY2425</option><option value="FY2526">FY2526</option><option value="FY2627">FY2627</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-400 mb-1">Tipo de Cliente</label>
-                      <select name="tipoCliente" value={formData.tipoCliente} onChange={handleFormChange} className="w-full bg-[#1e1e1e] border border-[#444] rounded-lg px-4 py-2.5 text-white focus:border-green-500 outline-none">
-                        <option value="Prospecto">Prospecto</option><option value="Ventas">Ventas</option><option value="Clave">Clave</option><option value="Estratégico">Estratégico</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-400 mb-1">Categoría</label>
-                      <select name="categoria" value={formData.categoria} onChange={handleFormChange} className="w-full bg-[#1e1e1e] border border-[#444] rounded-lg px-4 py-2.5 text-white focus:border-green-500 outline-none">
-                        <option value="Productor">Productor</option><option value="Acopiador">Acopiador</option><option value="Canjeador">Canjeador</option><option value="Otro">Otro</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-400 mb-1">Provincia</label>
-                      <select
-                        value={formProvincia}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setFormProvincia(val);
-                          setFormLocalidad('');
-                          setCustomLocalidad('');
-                          updateZonaField(val, '', '');
-                        }}
-                        className="w-full bg-[#1e1e1e] border border-[#444] rounded-lg px-4 py-2.5 text-white focus:border-green-500 outline-none"
-                      >
-                        <option value="">-- Seleccionar Provincia --</option>
-                        {PROVINCES.map(p => (
-                          <option key={p} value={p}>{p}</option>
-                        ))}
-                        <option value="Otra">Otra Provincia / Exterior...</option>
-                      </select>
-                    </div>
-                    {formProvincia && formProvincia !== 'Otra' && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-400 mb-1">Localidad / Zona</label>
-                        <select
-                          value={formLocalidad}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setFormLocalidad(val);
-                            if (val !== 'Otro') {
-                              setCustomLocalidad('');
-                            }
-                            updateZonaField(formProvincia, val, val === 'Otro' ? customLocalidad : '');
-                          }}
-                          className="w-full bg-[#1e1e1e] border border-[#444] rounded-lg px-4 py-2.5 text-white focus:border-green-500 outline-none"
-                        >
-                          <option value="">-- Seleccionar Localidad --</option>
-                          {ARGENTINE_REGIONS[formProvincia]?.map(loc => (
-                            <option key={loc} value={loc}>{loc}</option>
-                          ))}
-                          <option value="Otro">Otro (Ingresar manualmente)...</option>
-                        </select>
-                      </div>
-                    )}
-                    {(formProvincia === 'Otra' || formLocalidad === 'Otro') && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-400 mb-1">Escribir Localidad / Zona Manualmente</label>
-                        <input
-                          type="text"
-                          required
-                          value={customLocalidad}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setCustomLocalidad(val);
-                            updateZonaField(formProvincia, formLocalidad, val);
-                          }}
-                          className="w-full bg-[#1e1e1e] border border-[#444] rounded-lg px-4 py-2.5 text-white focus:border-green-500 outline-none"
-                          placeholder="Ej: Marcos Juárez"
-                        />
-                      </div>
-                    )}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-400 mb-1">Hectáreas Propias</label>
-                       <input type="number" name="hectareasPropias" value={formData.hectareasPropias} onChange={handleFormChange} className="w-full bg-[#1e1e1e] border border-[#444] rounded-lg px-4 py-2.5 text-white focus:border-green-500 outline-none" placeholder="0" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-400 mb-1">Hectáreas Alquiladas</label>
-                       <input type="number" name="hectareasAlquiladas" value={formData.hectareasAlquiladas} onChange={handleFormChange} className="w-full bg-[#1e1e1e] border border-[#444] rounded-lg px-4 py-2.5 text-white focus:border-green-500 outline-none" placeholder="0" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-400 mb-1">Has. Ganadería</label>
-                       <input type="number" name="hasGanaderia" value={formData.hasGanaderia} onChange={handleFormChange} className="w-full bg-[#1e1e1e] border border-[#444] rounded-lg px-4 py-2.5 text-white focus:border-green-500 outline-none" placeholder="0" />
-                    </div>
-                  </div>
-                </div>
-
-                {/* 2. Granos */}
-                <div className="bg-[#252525] p-6 rounded-xl border border-[#333]">
-                  <h3 className="text-lg font-bold text-white mb-4 border-b border-[#333] pb-2">2. Negocio Agrícola (Granos)</h3>
-                  
-                  <div className="space-y-6">
-                    {/* Cultivos Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                       <div className="bg-[#1e1e1e] p-4 rounded-lg border border-[#444]">
-                         <h4 className="font-bold text-green-400 mb-3 uppercase text-xs tracking-wider">Soja</h4>
-                         <div className="space-y-3">
-                           <div><label className="text-xs text-gray-400 mb-1 block">Has Sembradas</label><input type="number" name="hasSoja" value={formData.hasSoja} onChange={handleFormChange} className="w-full bg-[#252525] rounded px-3 py-1.5 text-white text-sm outline-none" /></div>
-                           <div><label className="text-xs text-gray-400 mb-1 block">Rto Estimado (kg/ha)</label><input type="number" name="rtoSjHa" value={formData.rtoSjHa} onChange={handleFormChange} className="w-full bg-[#252525] rounded px-3 py-1.5 text-white text-sm outline-none" /></div>
-                           <div><label className="text-xs text-gray-400 mb-1 block">Precio Obj. (USD)</label><input type="number" name="precioObjetivoSoja" value={formData.precioObjetivoSoja} onChange={handleFormChange} className="w-full bg-[#252525] rounded px-3 py-1.5 text-white text-sm outline-none" /></div>
-                           <div><label className="text-xs text-gray-400 mb-1 block">% Entrega Cosecha</label><input type="number" name="porcEntregaCosechaSoja" value={formData.porcEntregaCosechaSoja} onChange={handleFormChange} className="w-full bg-[#252525] rounded px-3 py-1.5 text-white text-sm outline-none" /></div>
-                         </div>
-                       </div>
-                       <div className="bg-[#1e1e1e] p-4 rounded-lg border border-[#444]">
-                         <h4 className="font-bold text-yellow-400 mb-3 uppercase text-xs tracking-wider">Maíz</h4>
-                         <div className="space-y-3">
-                           <div><label className="text-xs text-gray-400 mb-1 block">Has Sembradas</label><input type="number" name="hasMaiz" value={formData.hasMaiz} onChange={handleFormChange} className="w-full bg-[#252525] rounded px-3 py-1.5 text-white text-sm outline-none" /></div>
-                           <div><label className="text-xs text-gray-400 mb-1 block">Rto Estimado (kg/ha)</label><input type="number" name="rtoMzHa" value={formData.rtoMzHa} onChange={handleFormChange} className="w-full bg-[#252525] rounded px-3 py-1.5 text-white text-sm outline-none" /></div>
-                           <div><label className="text-xs text-gray-400 mb-1 block">Precio Obj. (USD)</label><input type="number" name="precioObjetivoMaiz" value={formData.precioObjetivoMaiz} onChange={handleFormChange} className="w-full bg-[#252525] rounded px-3 py-1.5 text-white text-sm outline-none" /></div>
-                           <div><label className="text-xs text-gray-400 mb-1 block">% Entrega Cosecha</label><input type="number" name="porcEntregaCosechaMaiz" value={formData.porcEntregaCosechaMaiz} onChange={handleFormChange} className="w-full bg-[#252525] rounded px-3 py-1.5 text-white text-sm outline-none" /></div>
-                         </div>
-                       </div>
-                       <div className="bg-[#1e1e1e] p-4 rounded-lg border border-[#444]">
-                         <h4 className="font-bold text-orange-400 mb-3 uppercase text-xs tracking-wider">Trigo</h4>
-                         <div className="space-y-3">
-                           <div><label className="text-xs text-gray-400 mb-1 block">Has Sembradas</label><input type="number" name="hasTrigo" value={formData.hasTrigo} onChange={handleFormChange} className="w-full bg-[#252525] rounded px-3 py-1.5 text-white text-sm outline-none" /></div>
-                           <div><label className="text-xs text-gray-400 mb-1 block">Rto Estimado (kg/ha)</label><input type="number" name="rtoTgHa" value={formData.rtoTgHa} onChange={handleFormChange} className="w-full bg-[#252525] rounded px-3 py-1.5 text-white text-sm outline-none" /></div>
-                           <div><label className="text-xs text-gray-400 mb-1 block">Precio Obj. (USD)</label><input type="number" name="precioObjetivoTrigo" value={formData.precioObjetivoTrigo} onChange={handleFormChange} className="w-full bg-[#252525] rounded px-3 py-1.5 text-white text-sm outline-none" /></div>
-                           <div><label className="text-xs text-gray-400 mb-1 block">% Entrega Cosecha</label><input type="number" name="porcEntregaCosechaTrigo" value={formData.porcEntregaCosechaTrigo} onChange={handleFormChange} className="w-full bg-[#252525] rounded px-3 py-1.5 text-white text-sm outline-none" /></div>
-                         </div>
-                       </div>
-                       <div className="bg-[#1e1e1e] p-4 rounded-lg border border-[#444]">
-                         <h4 className="font-bold text-amber-500 mb-3 uppercase text-xs tracking-wider">Girasol</h4>
-                         <div className="space-y-3">
-                           <div><label className="text-xs text-gray-400 mb-1 block">Has Sembradas</label><input type="number" name="hasGirasol" value={formData.hasGirasol} onChange={handleFormChange} className="w-full bg-[#252525] rounded px-3 py-1.5 text-white text-sm outline-none" /></div>
-                           <div><label className="text-xs text-gray-400 mb-1 block">Rto Estimado (kg/ha)</label><input type="number" name="rtoGsHa" value={formData.rtoGsHa} onChange={handleFormChange} className="w-full bg-[#252525] rounded px-3 py-1.5 text-white text-sm outline-none" /></div>
-                           <div><label className="text-xs text-gray-400 mb-1 block">Precio Obj. (USD)</label><input type="number" name="precioObjetivoGirasol" value={formData.precioObjetivoGirasol} onChange={handleFormChange} className="w-full bg-[#252525] rounded px-3 py-1.5 text-white text-sm outline-none" /></div>
-                           <div><label className="text-xs text-gray-400 mb-1 block">% Entrega Cosecha</label><input type="number" name="porcEntregaCosechaGirasol" value={formData.porcEntregaCosechaGirasol} onChange={handleFormChange} className="w-full bg-[#252525] rounded px-3 py-1.5 text-white text-sm outline-none" /></div>
-                         </div>
-                       </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 3. Insumos */}
-                <div className="bg-[#252525] p-6 rounded-xl border border-[#333]">
-                  <h3 className="text-lg font-bold text-white mb-4 border-b border-[#333] pb-2">3. Negocio de Insumos</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-400 mb-1">Potencial Agroq. (USD)</label>
-                      <input type="number" name="potencialAgroq" value={formData.potencialAgroq} onChange={handleFormChange} className="w-full bg-[#1e1e1e] border border-[#444] rounded-lg px-4 py-2.5 text-white focus:border-green-500 outline-none" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-400 mb-1">PPTO Agroq. (USD)</label>
-                      <input type="number" name="budgetAgroq" value={formData.budgetAgroq} onChange={handleFormChange} className="w-full bg-[#1e1e1e] border border-[#444] rounded-lg px-4 py-2.5 text-white focus:border-green-500 outline-none" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-400 mb-1">Potencial Ferti. (USD)</label>
-                      <input type="number" name="potencialFerti" value={formData.potencialFerti} onChange={handleFormChange} className="w-full bg-[#1e1e1e] border border-[#444] rounded-lg px-4 py-2.5 text-white focus:border-green-500 outline-none" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-400 mb-1">PPTO Ferti. (USD)</label>
-                      <input type="number" name="budgetFerti" value={formData.budgetFerti} onChange={handleFormChange} className="w-full bg-[#1e1e1e] border border-[#444] rounded-lg px-4 py-2.5 text-white focus:border-green-500 outline-none" />
-                    </div>
-                    
-                    <div className="flex items-center gap-3">
-                      <input type="checkbox" name="comprasPreCampana" checked={formData.comprasPreCampana} onChange={handleFormChange} className="w-5 h-5 accent-green-500 bg-[#1e1e1e] rounded" />
-                      <label className="text-gray-300">¿Compra Pre-Campaña?</label>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <input type="checkbox" name="productosPremium" checked={formData.productosPremium} onChange={handleFormChange} className="w-5 h-5 accent-green-500 bg-[#1e1e1e] rounded" />
-                      <label className="text-gray-300">¿Busca Prod. Premium?</label>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 4. Seguimiento */}
-                <div className="bg-[#252525] p-6 rounded-xl border border-[#333]">
-                  <h3 className="text-lg font-bold text-white mb-4 border-b border-[#333] pb-2">4. Gestión y Seguimiento</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                       <label className="block text-sm font-medium text-gray-400 mb-1">Fecha Último Contacto</label>
-                       <input type="date" name="fechaUltimoContacto" value={formData.fechaUltimoContacto} onChange={handleFormChange} className="w-full bg-[#1e1e1e] border border-[#444] rounded-lg px-4 py-2.5 text-gray-300 focus:border-green-500 outline-none" />
-                    </div>
-                    <div>
-                       <label className="block text-sm font-medium text-gray-400 mb-1">Fecha Próximos Pasos</label>
-                       <input type="date" name="fechaProximosPasos" value={formData.fechaProximosPasos} onChange={handleFormChange} className="w-full bg-[#1e1e1e] border border-[#444] rounded-lg px-4 py-2.5 text-gray-300 focus:border-green-500 outline-none" />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-400 mb-1">Próxima Acción (To-Do)</label>
-                      <input type="text" name="proximaAccion" value={formData.proximaAccion} onChange={handleFormChange} className="w-full bg-[#1e1e1e] border border-[#444] rounded-lg px-4 py-2.5 text-white focus:border-green-500 outline-none" placeholder="Ej: Llamar por cotización semilla" />
-                    </div>
-                    <div className="md:col-span-2">
-                       <label className="block text-sm font-medium text-gray-400 mb-1">Observaciones</label>
-                       <textarea name="observaciones" value={formData.observaciones} onChange={handleFormChange} rows={3} className="w-full bg-[#1e1e1e] border border-[#444] rounded-lg px-4 py-2.5 text-white focus:border-green-500 outline-none resize-none" placeholder="Contexto general..." />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex justify-end gap-4 border-t border-[#333] pt-6">
-                  <button type="button" onClick={handleBackToList} className="px-6 py-2.5 text-gray-400 hover:text-white font-medium transition-colors">
-                    Cancelar
-                  </button>
-                  <button type="submit" className="bg-green-600 hover:bg-green-700 text-white font-bold px-8 py-2.5 rounded-lg shadow-sm transition-colors">
-                    {isEditingCustomer ? 'Guardar Cambios' : 'Registrar Cliente'}
-                  </button>
-                </div>
-
-              </form>
-            </div>
-          )}
         </div>
       ) : mainView === 'agenda' ? (
         <div className="space-y-6 animate-in fade-in duration-300">
@@ -2278,62 +1918,58 @@ export function Clientes() {
             </div>
           </div>
 
-          {/* 2. SECCIÓN: COMPREHENSIVE BENTO DE FILTROS & ORDENAMIENTOS */}
-          <div className="bg-[#1a1a1a] border border-[#333] rounded-2xl p-4 sm:p-5 space-y-4 min-w-0">
-            <div 
-              className="flex items-center justify-between pb-2 border-b border-[#2b2b2b] cursor-pointer md:cursor-default"
-              onClick={() => {
-                if (window.innerWidth < 768) {
-                  setIsMobileFiltersExpanded(!isMobileFiltersExpanded);
-                }
-              }}
-            >
-              <div className="flex items-center gap-2">
-                <Settings2 className="w-4 h-4 text-green-500" />
-                <span className="text-xs font-bold text-gray-300 uppercase tracking-wider">Filtros Avanzados</span>
-                <span className="hidden md:inline text-xs font-bold text-gray-400 uppercase tracking-wider">e Inteligencia Logística</span>
-                <span className="md:hidden text-[9px] bg-green-500/15 text-green-400 px-2 py-0.5 rounded border border-green-500/25 font-bold uppercase ml-1">
-                  {isMobileFiltersExpanded ? 'Contraer ▲' : 'Configurar ▼'}
-                </span>
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 sm:p-5 space-y-4 min-w-0">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Buscar productor, zona o tag..."
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  className="w-full bg-zinc-800 border border-zinc-700 hover:border-zinc-600 rounded-xl pl-9 pr-4 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-green-500 transition-all font-medium"
+                />
               </div>
-              
-              <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center gap-2 shrink-0">
                 {isAnyFilterActive && (
-                  <button 
+                  <button
                     type="button"
                     onClick={handleClearFilters}
-                    className="text-[10px] font-semibold text-yellow-500 hover:text-yellow-400 bg-yellow-500/10 hover:bg-yellow-500/15 border border-yellow-500/20 px-2 py-0.5 rounded transition-all"
+                    className="text-xs font-semibold text-amber-400 hover:text-amber-300 bg-amber-500/10 border border-amber-500/20 px-3 py-2.5 rounded-xl"
                   >
                     Restablecer
                   </button>
                 )}
+                <button
+                  type="button"
+                  onClick={() => setShowFilters(open => !open)}
+                  className={`px-3 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border ${
+                    showFilters || advancedFilterCount > 0
+                      ? 'bg-green-600 text-white border-green-500'
+                      : 'bg-zinc-800 text-zinc-300 border-zinc-700 hover:text-white'
+                  }`}
+                >
+                  <Filter className="w-4 h-4" />
+                  Filtros Avanzados
+                  {advancedFilterCount > 0 && (
+                    <span className="min-w-5 h-5 px-1 rounded-full bg-black/20 flex items-center justify-center font-mono">
+                      {advancedFilterCount}
+                    </span>
+                  )}
+                </button>
               </div>
             </div>
 
-            <div className={`${isMobileFiltersExpanded ? 'block' : 'hidden md:block'} space-y-4`}>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                
-                {/* Buscador de Texto */}
-                <div className="relative">
-                  <Search className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input 
-                    type="text" 
-                    placeholder="Buscar productor, zona o tag..." 
-                    value={searchTerm} 
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full bg-[#222] border border-[#333] hover:border-[#444] rounded-xl pl-9 pr-4 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-green-500 transition-all font-medium"
-                  />
-                </div>
-
-                {/* Selector de Provincia */}
-                <div>
+            {showFilters && (
+              <div className="space-y-4 pt-2 border-t border-zinc-800">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   <select
                     value={filterProvincia}
-                    onChange={(e) => {
+                    onChange={e => {
                       setFilterProvincia(e.target.value);
                       setFilterLocalidad('');
                     }}
-                    className="w-full bg-[#222] border border-[#333] hover:border-[#444] rounded-xl px-3 py-2.5 text-xs text-gray-300 focus:outline-none focus:border-green-500 transition-all"
+                    className="w-full bg-zinc-800 border border-zinc-700 hover:border-zinc-600 rounded-xl px-3 py-2.5 text-xs text-zinc-300 focus:outline-none focus:border-green-500"
                   >
                     <option value="">Todas las Provincias</option>
                     {PROVINCES.map(p => (
@@ -2341,29 +1977,23 @@ export function Clientes() {
                     ))}
                     <option value="Otra">Otra Provincia / Exterior</option>
                   </select>
-                </div>
 
-                {/* Selector de Localidad (Se activa si hay provincia) */}
-                <div>
                   <select
                     value={filterLocalidad}
-                    onChange={(e) => setFilterLocalidad(e.target.value)}
+                    onChange={e => setFilterLocalidad(e.target.value)}
                     disabled={!filterProvincia || filterProvincia === 'Otra'}
-                    className="w-full bg-[#222] border border-[#333] hover:border-[#444] rounded-xl px-3 py-2.5 text-xs text-gray-300 focus:outline-none focus:border-green-500 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="w-full bg-zinc-800 border border-zinc-700 hover:border-zinc-600 rounded-xl px-3 py-2.5 text-xs text-zinc-300 focus:outline-none focus:border-green-500 disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     <option value="">Todas las Localidades</option>
                     {filterProvincia && ARGENTINE_REGIONS[filterProvincia]?.map(loc => (
                       <option key={loc} value={loc}>{loc}</option>
                     ))}
                   </select>
-                </div>
 
-                {/* Tipo de Cliente CRM */}
-                <div>
-                  <select 
-                    value={filterTipoCliente} 
-                    onChange={e => setFilterTipoCliente(e.target.value)} 
-                    className="w-full bg-[#222] border border-[#333] hover:border-[#444] rounded-xl px-3 py-2.5 text-xs text-gray-300 focus:outline-none focus:border-green-500 transition-all"
+                  <select
+                    value={filterTipoCliente}
+                    onChange={e => setFilterTipoCliente(e.target.value)}
+                    className="w-full bg-zinc-800 border border-zinc-700 hover:border-zinc-600 rounded-xl px-3 py-2.5 text-xs text-zinc-300 focus:outline-none focus:border-green-500"
                   >
                     <option value="">Todos los Tipos de Cuenta</option>
                     <option value="Prospecto">Prospecto</option>
@@ -2371,18 +2001,11 @@ export function Clientes() {
                     <option value="Clave">Clave</option>
                     <option value="Estratégico">Estratégico</option>
                   </select>
-                </div>
 
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3.5 pt-1">
-                
-                {/* Categoría */}
-                <div>
-                  <select 
-                    value={filterCategoria} 
-                    onChange={e => setFilterCategoria(e.target.value)} 
-                    className="w-full bg-[#222] border border-[#333] hover:border-[#444] rounded-xl px-3 py-2 text-xs text-gray-300 focus:outline-none focus:border-green-500 transition-all"
+                  <select
+                    value={filterCategoria}
+                    onChange={e => setFilterCategoria(e.target.value)}
+                    className="w-full bg-zinc-800 border border-zinc-700 hover:border-zinc-600 rounded-xl px-3 py-2.5 text-xs text-zinc-300 focus:outline-none focus:border-green-500"
                   >
                     <option value="">Todas las Categorías</option>
                     <option value="Productor">Productor</option>
@@ -2392,12 +2015,11 @@ export function Clientes() {
                   </select>
                 </div>
 
-                {/* Año Fiscal */}
-                <div>
-                  <select 
-                    value={filterAnoFiscal} 
-                    onChange={e => setFilterAnoFiscal(e.target.value)} 
-                    className="w-full bg-[#222] border border-[#333] hover:border-[#444] rounded-xl px-3 py-2 text-xs text-gray-300 focus:outline-none focus:border-green-500 transition-all"
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <select
+                    value={filterAnoFiscal}
+                    onChange={e => setFilterAnoFiscal(e.target.value)}
+                    className="w-full bg-zinc-800 border border-zinc-700 hover:border-zinc-600 rounded-xl px-3 py-2.5 text-xs text-zinc-300 focus:outline-none focus:border-green-500"
                   >
                     <option value="">Todos los Años Fiscales</option>
                     <option value="FY2324">FY2324</option>
@@ -2405,243 +2027,66 @@ export function Clientes() {
                     <option value="FY2526">FY2526</option>
                     <option value="FY2627">FY2627</option>
                   </select>
-                </div>
 
-                {/* Condición de Relevamiento */}
-                <div>
-                  <select 
-                    value={filterRelevado} 
-                    onChange={e => setFilterRelevado(e.target.value)} 
-                    className="w-full bg-[#222] border border-[#333] hover:border-[#444] rounded-xl px-3 py-2 text-xs text-gray-300 focus:outline-none focus:border-green-500 transition-all"
+                  <select
+                    value={filterRelevado}
+                    onChange={e => setFilterRelevado(e.target.value)}
+                    className="w-full bg-zinc-800 border border-zinc-700 hover:border-zinc-600 rounded-xl px-3 py-2.5 text-xs text-zinc-300 focus:outline-none focus:border-green-500"
                   >
                     <option value="">Estado de Relevamiento</option>
                     <option value="Sí">Socio Relevado</option>
                     <option value="No">No Relevado</option>
                   </select>
-                </div>
 
-                {/* Condición de Estado */}
-                <div>
-                  <select 
-                    value={filterStatus} 
-                    onChange={e => setFilterStatus(e.target.value)} 
-                    className="w-full bg-[#222] border border-[#333] hover:border-[#444] rounded-xl px-3 py-2 text-xs text-gray-300 focus:outline-none focus:border-green-500 transition-all"
+                  <select
+                    value={filterStatus}
+                    onChange={e => setFilterStatus(e.target.value)}
+                    className="w-full bg-zinc-800 border border-zinc-700 hover:border-zinc-600 rounded-xl px-3 py-2.5 text-xs text-zinc-300 focus:outline-none focus:border-green-500"
                   >
                     <option value="">Todos los Estados</option>
                     <option value="activo">Activo</option>
                     <option value="inactivo">Inactivo</option>
                     <option value="suspendido">Suspendido</option>
                   </select>
+
+                  <div className="flex gap-1.5">
+                    <select
+                      value={sortBy}
+                      onChange={e => setSortBy(e.target.value)}
+                      className="flex-1 bg-zinc-800 border border-zinc-700 hover:border-zinc-600 rounded-xl px-2.5 py-2.5 text-xs text-zinc-300 focus:outline-none focus:border-green-500"
+                    >
+                      <option value="name">Ordenar por: Nombre</option>
+                      <option value="hectareasTotales">Hectáreas Operadas</option>
+                      <option value="potencialTotal">PPTO / Potencial USD</option>
+                      <option value="fechaUltimoContacto">Último Contacto</option>
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                      className="bg-green-500/10 border border-zinc-700 hover:border-zinc-600 text-green-400 p-2 rounded-xl flex items-center justify-center"
+                      title={sortOrder === 'asc' ? 'Orden Ascendente' : 'Orden Descendente'}
+                    >
+                      <ArrowUpDown className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
-
-                {/* Ordenamiento Combinado */}
-                <div className="flex gap-1.5">
-                  <select 
-                    value={sortBy} 
-                    onChange={e => setSortBy(e.target.value)} 
-                    className="flex-1 bg-[#222] border border-[#333] hover:border-[#444] rounded-xl px-2.5 py-2 text-xs text-gray-300 focus:outline-none focus:border-green-500 transition-all"
-                  >
-                    <option value="name">Ordenar por: Nombre</option>
-                    <option value="hectareasTotales">Hectáreas Operadas</option>
-                    <option value="potencialTotal">PPTO / Potencial USD</option>
-                    <option value="fechaUltimoContacto">Último Contacto</option>
-                  </select>
-                  <button
-                    type="button"
-                    onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
-                    className="bg-[#22c55e]/10 border border-[#333] hover:border-[#444] text-green-400 p-2 rounded-xl flex items-center justify-center hover:bg-[#22c55e]/15 transition-all"
-                    title={sortOrder === 'asc' ? 'Orden Ascendente' : 'Orden Descendente'}
-                  >
-                    <ArrowUpDown className="w-4 h-4" />
-                  </button>
-                </div>
-
-              </div>
-            </div>
-          </div>
-
-          {/* 3. SECCIÓN: LISTADO BENTO DE PRODUCTORES EN CRM */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {filteredAndSortedCustomers.map(customer => {
-              const totalHas = (Number(customer.hectareasPropias) || 0) + (Number(customer.hectareasAlquiladas) || 0);
-              const potentialUSD = (Number(customer.potencialAgroq) || 0) + (Number(customer.potencialFerti) || 0);
-              const contactDate = customer.fechaUltimoContacto || '';
-              
-              // Color de avatar dependiendo del Tipo de Cliente
-              let avatarBg = 'bg-blue-950/40 text-blue-400 border border-blue-850';
-              if (customer.tipoCliente === 'Ventas') avatarBg = 'bg-emerald-950/40 text-emerald-400 border border-emerald-850';
-              if (customer.tipoCliente === 'Clave') avatarBg = 'bg-indigo-950/40 text-indigo-400 border border-indigo-850';
-              if (customer.tipoCliente === 'Estratégico') avatarBg = 'bg-purple-950/40 text-purple-400 border border-purple-850';
-              if (customer.tipoCliente === 'Prospecto') avatarBg = 'bg-amber-950/40 text-amber-500 border border-amber-850';
-
-              // Iniciales para el avatar redondo
-              const initials = (customer.name || 'CR')
-                .split(' ')
-                .slice(0, 2)
-                .map((word: string) => word[0])
-                .join('')
-                .toUpperCase();
-
-              // Determinar cultivos activos para mostrar tags de producción rápido
-              const cropTags = [];
-              if (Number(customer.hasSoja) > 0) cropTags.push({ code: 'Sj', color: 'bg-green-950/60 text-green-400 border-green-900/30' });
-              if (Number(customer.hasMaiz) > 0) cropTags.push({ code: 'Mz', color: 'bg-yellow-950/60 text-yellow-400 border-yellow-900/30' });
-              if (Number(customer.hasTrigo) > 0) cropTags.push({ code: 'Tg', color: 'bg-orange-950/60 text-orange-400 border-orange-900/30' });
-              if (Number(customer.hasGirasol) > 0) cropTags.push({ code: 'Gs', color: 'bg-amber-950/60 text-amber-500 border-amber-900/30' });
-              if (Number(customer.hasSorgo) > 0) cropTags.push({ code: 'Sg', color: 'bg-red-950/60 text-red-400 border-red-900/30' });
-
-              return (
-                <div 
-                  key={customer.id} 
-                  onClick={() => { setSelectedCustomer(customer); setViewingCustomerDetails(true); }}
-                  className="bg-[#1a1a1a] border border-[#2d2d2d] hover:border-green-500/50 rounded-2xl p-4 sm:p-5 cursor-pointer transition-all lg:hover:-translate-y-1.5 duration-300 hover:shadow-xl hover:shadow-green-950/5 relative group overflow-hidden"
-                >
-                  {/* Gradiente sutil superior */}
-                  <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-green-500/10 to-transparent group-hover:via-green-500/40 transition-all duration-300" />
-                  
-                  {/* Cabecera de la Tarjeta */}
-                  <div className="flex items-start gap-3.5">
-                    <div className={`w-11 h-11 rounded-full flex items-center justify-center font-bold text-xs select-none shadow-inner flex-shrink-0 ${avatarBg}`}>
-                      {initials}
-                    </div>
-                    
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <h3 className="font-bold text-base text-gray-100 group-hover:text-white transition-colors truncate" title={customer.name}>
-                          {customer.name}
-                        </h3>
-                        {customer.relevado === 'Sí' && (
-                          <span className="flex-shrink-0 text-[10px] text-green-400 flex items-center bg-[#151515] p-0.5 rounded-full border border-green-950" title="Productor Relevado Directamente">
-                            <Check className="w-3.5 h-3.5" />
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#252525] text-gray-300 border border-[#333]">
-                          {customer.categoria || 'Productor'}
-                        </span>
-                        <span className="text-[10px] font-medium text-gray-400 truncate flex items-center gap-1">
-                          <MapPin className="w-3 h-3 text-red-500/60" /> {customer.zona || 'Sin Zona'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Indicador de Cultivos Activos */}
-                  {cropTags.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-3.5 border-t border-[#252525] pt-3">
-                      <span className="text-[9px] uppercase font-bold text-gray-500 mr-1 flex items-center">Siembras:</span>
-                      {cropTags.map((t, idx) => (
-                        <span key={idx} className={`text-[9px] font-bold px-1.5 py-0.2 rounded-md border ${t.color}`}>
-                          {t.code}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Detalle de Superficies y Insumos */}
-                  <div className="grid grid-cols-2 gap-3.5 mt-4 border-t border-[#252525] pt-3.5 text-xs">
-                    <div>
-                      <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider mb-0.5">Hectáreas Operadas</p>
-                      <p className="text-gray-200 font-extrabold flex items-baseline gap-1">
-                        {totalHas.toLocaleString()} <span className="text-[10px] text-gray-500 font-normal">ha</span>
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider mb-0.5">Potencial Insumos</p>
-                      <p className="text-green-400 font-extrabold">
-                        ${potentialUSD.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* CUIT & Contact Meta */}
-                  <div className="mt-4 pt-3.5 border-t border-[#252525] flex justify-between items-center text-[10px]">
-                    <div className="font-mono text-gray-500 flex items-center">
-                      <span className="bg-[#222] px-2 py-0.5 rounded border border-[#2b2b2b] select-all">
-                        {customer.cuit || 'Sin CUIT'}
-                      </span>
-                      {customer.cuit && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigator.clipboard.writeText(customer.cuit);
-                            addToast('CUIT copiado al portapapeles 📋', 'success');
-                          }}
-                          className="ml-1.5 p-1 text-gray-500 hover:text-green-400 transition-colors"
-                          title="Copiar CUIT"
-                        >
-                          <FileText className="w-3 h-3" />
-                        </button>
-                      )}
-                    </div>
-                    
-                    <div className="text-gray-400 font-medium">
-                      {contactDate ? (
-                        <span>Visita: {contactDate}</span>
-                      ) : (
-                        <span className="text-amber-500/70">Sin Contacto</span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Acciones de Flote / HOVER */}
-                  <div className="mt-3 flex items-center justify-end gap-1.5 lg:absolute lg:right-4 lg:top-4 lg:mt-0 lg:opacity-0 lg:group-hover:opacity-100 transition-all duration-300" onClick={(e) => e.stopPropagation()}>
-                    {customer.phone && (
-                      <>
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenWaModal(customer.phone, customer.id, customer.name);
-                          }}
-                          className="w-9 h-9 flex items-center justify-center bg-emerald-600/10 hover:bg-emerald-600 text-emerald-400 hover:text-white rounded-lg border border-emerald-500/15 transition-all duration-150 cursor-pointer"
-                          title="Enviar WhatsApp con Plantilla"
-                        >
-                          <MessageSquare className="w-3.5 h-3.5" />
-                        </button>
-                        <a 
-                          href={`tel:${customer.phone}`}
-                          onClick={(e) => e.stopPropagation()}
-                          className="w-9 h-9 flex items-center justify-center bg-blue-600/10 hover:bg-blue-600 text-blue-400 hover:text-white rounded-lg border border-blue-500/15 transition-all duration-150"
-                          title={`Llamar: ${customer.phone}`}
-                        >
-                          <Phone className="w-3.5 h-3.5" />
-                        </a>
-                      </>
-                    )}
-                    {customer.email && (
-                      <a 
-                        href={`mailto:${customer.email}`}
-                        onClick={(e) => e.stopPropagation()}
-                        className="w-9 h-9 flex items-center justify-center bg-indigo-600/10 hover:bg-indigo-600 text-indigo-400 hover:text-white rounded-lg border border-indigo-500/15 transition-all duration-150"
-                        title={`Escribir a: ${customer.email}`}
-                      >
-                        <Mail className="w-3.5 h-3.5" />
-                      </a>
-                    )}
-                  </div>
-
-                </div>
-              );
-            })}
-
-            {filteredAndSortedCustomers.length === 0 && (
-              <div className="col-span-full h-56 flex flex-col items-center justify-center border-2 border-dashed border-[#333] rounded-2xl bg-[#1e1e1e] p-6 text-center animate-in fade-in zoom-in-95 duration-150">
-                <Search className="w-10 h-10 text-gray-600 mb-3" />
-                <h4 className="font-bold text-gray-300 text-sm">No se encontraron clientes</h4>
-                <p className="text-gray-500 text-xs mt-1 max-w-sm">
-                  Ningún productor califica dentro del set de filtros seleccionados. Intente restablecer las opciones ingresadas.
-                </p>
-                <button
-                  onClick={handleClearFilters}
-                  className="mt-4 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-lg shadow transition-colors"
-                >
-                  Restablecer Filtros
-                </button>
               </div>
             )}
           </div>
+
+          <ClientTable
+            clients={filteredAndSortedCustomers as ClientListItem[]}
+            onSelect={customer => {
+              setSelectedCustomer(customer);
+              setViewingCustomerDetails(true);
+            }}
+            onOpenWhatsApp={handleOpenWaModal}
+            onCopyCuit={cuit => {
+              navigator.clipboard.writeText(cuit);
+              addToast('CUIT copiado al portapapeles 📋', 'success');
+            }}
+            onResetFilters={handleClearFilters}
+          />
 
           {/* 4. SECCIÓN: ANALÍTICAS GRÁFICAS INTEGRALES */}
           {filteredAndSortedCustomers.length > 0 && (
@@ -2713,6 +2158,16 @@ export function Clientes() {
 
         </div>
       )}
+
+      <ClientFormModal
+        isOpen={isClientFormOpen}
+        initialData={clientFormInitial}
+        onClose={() => {
+          setIsClientFormOpen(false);
+          setClientFormInitial(null);
+        }}
+        onSubmit={handleSubmitClientForm}
+      />
 
       {/* WhatsApp Template Modal */}
       <WhatsappTemplateModal
