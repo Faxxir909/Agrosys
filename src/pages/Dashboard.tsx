@@ -446,13 +446,15 @@ export function Dashboard() {
       </div>
 
       {/* Mapa Interactivo Leaflet */}
-      <InteractiveMap />
+      <div className="rounded-2xl overflow-hidden">
+        <InteractiveMap />
+      </div>
 
       {/* Secciones de Gráficos, Pizarra de Precios, Agenda de Campo y Auditoría */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6 items-stretch">
         {/* Col 1: Precios de Pizarra */}
-        <div className="bg-[#1e1e1e] border border-[#333] rounded-2xl p-4 sm:p-6 shadow-sm flex flex-col justify-between">
-          <div>
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 sm:p-6 shadow-sm h-full flex flex-col">
+          <div className="flex-1 min-h-0 flex flex-col">
             <div className="flex justify-between items-center mb-6">
               <div>
                 <h2 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
@@ -497,7 +499,7 @@ export function Dashboard() {
                 ))}
               </div>
             ) : (
-              <div className="h-[210px] w-full mt-2">
+              <div className="flex-1 min-h-52 w-full mt-2">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={priceHistory} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" />
@@ -543,16 +545,15 @@ export function Dashboard() {
         </div>
 
         {/* Col 2: Balance de volumen */}
-        <div className="bg-[#1e1e1e] border border-[#333] rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col justify-between">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 sm:p-6 shadow-sm h-full flex flex-col">
           <div>
             <h2 className="text-base sm:text-lg font-black text-white mb-1.5">Balance de Mesa Activa</h2>
             <p className="text-xs text-gray-400">Distribución física de volumen de granos en juego (TN)</p>
           </div>
-          <div className="h-[210px] w-full flex items-center justify-center py-2">
+          <div className="flex-1 min-h-52 w-full flex items-center justify-center py-2">
             {volOfertas === 0 && volDemandas === 0 ? (
-               <div className="text-xs text-gray-500 font-medium text-center">
-                 <p className="mb-2">📊 No hay ofertas ni demandas activas</p>
-                 <span className="text-[10px]">Crea o simula alertas para ver el gráfico</span>
+               <div className="w-full h-full rounded-xl bg-zinc-800/40 flex items-center justify-center">
+                 <p className="text-xs text-zinc-500 font-medium text-center">Sin volumen activo</p>
                </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
@@ -592,8 +593,8 @@ export function Dashboard() {
         </div>
 
         {/* Col 3: Agenda General Express */}
-        <div className="bg-[#1e1e1e] border border-[#333] rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col justify-between">
-          <div>
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 sm:p-6 shadow-sm h-full flex flex-col">
+          <div className="flex-1 min-h-0 flex flex-col">
             <div className="flex justify-between items-center mb-1.5">
               <h2 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
                 <Calendar className="w-4.5 h-4.5 text-green-500" />
@@ -605,7 +606,7 @@ export function Dashboard() {
             </div>
             <p className="text-xs text-gray-400 mb-4">Compromisos de logística, visitas y cobranzas programadas</p>
 
-            <div className="space-y-2.5 max-h-[210px] overflow-y-auto pr-1">
+            <div className="flex-1 min-h-0 space-y-2.5 overflow-y-auto pr-1">
               {tasks.filter(t => t.status === 'pendiente').length > 0 ? (
                 tasks.filter(t => t.status === 'pendiente').slice(0, 3).map((t) => {
                   let badge = 'border-zinc-700 bg-zinc-800 text-zinc-300';
@@ -642,9 +643,8 @@ export function Dashboard() {
                   );
                 })
               ) : (
-                <div className="p-6 text-center text-xs text-gray-500 flex flex-col items-center justify-center border border-dashed border-[#2d2d2d] rounded-2xl">
-                  <Calendar className="w-6 h-6 text-gray-600 mb-2" />
-                  <p>Sin visitas ni alertas de cobranza pendientes.</p>
+                <div className="h-full min-h-32 rounded-xl bg-zinc-800/40 flex items-center justify-center">
+                  <p className="text-xs text-zinc-500 font-medium">Sin pendientes</p>
                 </div>
               )}
             </div>
@@ -662,8 +662,8 @@ export function Dashboard() {
         </div>
 
         {/* Col 4: Auditoría de Operaciones */}
-        <div className="bg-[#1e1e1e] border border-[#333] rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col justify-between">
-          <div>
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 sm:p-6 shadow-sm h-full flex flex-col">
+          <div className="flex-1 min-h-0 flex flex-col">
             <div className="flex justify-between items-center mb-1.5">
               <h2 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
                 <Activity className="w-4.5 h-4.5 text-purple-500 animate-pulse" />
@@ -675,7 +675,7 @@ export function Dashboard() {
             </div>
             <p className="text-xs text-gray-400 mb-4">Registro de operaciones y mutations en vivo</p>
 
-            <div className="space-y-2.5 max-h-[210px] overflow-y-auto pr-1 scrollbar-thin">
+            <div className="flex-1 min-h-0 space-y-2.5 overflow-y-auto pr-1 scrollbar-thin">
               {auditLogs.length > 0 ? (
                 auditLogs.slice(0, 5).map((log) => {
                   return (
@@ -693,9 +693,8 @@ export function Dashboard() {
                   );
                 })
               ) : (
-                <div className="p-6 text-center text-xs text-gray-500 flex flex-col items-center justify-center border border-dashed border-[#2d2d2d] rounded-2xl">
-                  <Activity className="w-6 h-6 text-gray-600 mb-2" />
-                  <p>Sin operaciones registradas en esta sesión.</p>
+                <div className="h-full min-h-32 rounded-xl bg-zinc-800/40 flex items-center justify-center">
+                  <p className="text-xs text-zinc-500 font-medium">Sin actividad</p>
                 </div>
               )}
             </div>
