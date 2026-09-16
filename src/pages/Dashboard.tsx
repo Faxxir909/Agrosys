@@ -8,6 +8,7 @@ import { useDeals } from '../hooks/useDeals';
 import { format } from 'date-fns';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend, LineChart, Line, XAxis, YAxis, CartesianGrid, ReferenceLine } from 'recharts';
 import { InteractiveMap } from '../components/InteractiveMap';
+import { PizarraRosarioWidget } from '../components/market/PizarraRosarioWidget';
 import { socket } from '../lib/socket';
 import { useUI } from '../contexts/UIContext';
 
@@ -208,101 +209,6 @@ export function Dashboard() {
       socket.off('deals', fetchMatches);
     };
   }, []);
-  
-  // Real-time prices states
-  const [prices, setPrices] = useState({
-    soja: 0, maiz: 0, trigo: 0, sorgo: 0, girasol: 0
-  });
-  const [pricesMetadata, setPricesMetadata] = useState({
-    source: 'Obteniendo cotizaciones oficiales de Rosario...',
-    date: ''
-  });
-  const [loadingPrices, setLoadingPrices] = useState(false);
-  const [priceHistory, setPriceHistory] = useState<any[]>([]);
-  const [viewMode, setViewMode] = useState<'grid' | 'chart'>('grid');
-
-  const fetchPriceHistory = async () => {
-    try {
-      const history = await api.pizarraHistory();
-      const formatted = history.map((item: any) => ({
-        ...item,
-        formattedDate: item.createdAt ? format(new Date(item.createdAt), 'dd/MM') : ''
-      }));
-      setPriceHistory(formatted);
-    } catch (err) {
-      console.error('Error fetching price history:', err);
-    }
-  };
-
-  const fetchRealPrices = async () => {
-    setLoadingPrices(true);
-    try {
-      const origin = typeof window !== 'undefined' ? window.location.origin : '';
-      const response = await fetch(`${origin}/api/real-pizarra-prices`);
-      if (!response.ok) throw new Error('Fallo al recuperar los precios');
-      
-      const text = await response.text();
-      if (!text || !text.trim().startsWith('{')) {
-        throw new Error('La respuesta de precios no es un JSON válido');
-      }
-      
-      const data = JSON.parse(text);
-      if (data && typeof data === 'object') {
-        setPrices({
-          soja: Number(data.soja),
-          maiz: Number(data.maiz),
-          trigo: Number(data.trigo),
-          sorgo: Number(data.sorgo),
-          girasol: Number(data.girasol)
-        });
-        setPricesMetadata({
-          source: data.source || 'Cámara Arbitral de Rosario',
-          date: data.date || format(new Date(), 'yyyy-MM-dd')
-        });
-        fetchPriceHistory();
-      }
-    } catch (err) {
-      console.warn('No fue posible obtener cotizaciones reales:', err);
-      setPrices({ soja: 0, maiz: 0, trigo: 0, sorgo: 0, girasol: 0 });
-      setPricesMetadata({
-        source: 'Cotizaciones no disponibles',
-        date: ''
-      });
-    } finally {
-      setLoadingPrices(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchRealPrices();
-    fetchPriceHistory();
-  }, []);
-
-  const averageTargets = React.useMemo(() => {
-    const grains = ['soja', 'maiz', 'trigo', 'sorgo', 'girasol'];
-    const sums: Record<string, number> = { soja: 0, maiz: 0, trigo: 0, sorgo: 0, girasol: 0 };
-    const counts: Record<string, number> = { soja: 0, maiz: 0, trigo: 0, sorgo: 0, girasol: 0 };
-
-    clients.forEach(c => {
-      grains.forEach(g => {
-        const key = `precio_objetivo_${g}`;
-        const val = c[key] || (c.metadata && c.metadata[key]);
-        if (val) {
-          const num = Number(val);
-          if (num > 0) {
-            sums[g] += num;
-            counts[g]++;
-          }
-        }
-      });
-    });
-
-    const avgs: Record<string, number | null> = {};
-    grains.forEach(g => {
-      avgs[g] = counts[g] > 0 ? Math.round(sums[g] / counts[g]) : null;
-    });
-    return avgs;
-  }, [clients]);
 
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
 
@@ -457,96 +363,9 @@ export function Dashboard() {
 
       {/* Secciones de Gráficos, Pizarra de Precios, Agenda de Campo y Auditoría */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6 items-stretch">
-        {/* Col 1: Precios de Pizarra */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 sm:p-6 shadow-sm h-full flex flex-col">
-          <div className="flex-1 min-h-0 flex flex-col">
-            <div className="flex justify-between items-center mb-6">
-              <div>
-                <h2 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse" />
-                  Pizarra de Rosario En Vivo
-                </h2>
-                <p className="text-xs text-gray-400 mt-1 font-sans">Cotizaciones oficiales procesadas por IA</p>
-              </div>
-              <div className="flex gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setViewMode(prev => prev === 'grid' ? 'chart' : 'grid')}
-                  className="p-2.5 bg-[#2d2d2d] hover:bg-[#3d3d3d] rounded-xl text-gray-300 hover:text-white transition-all duration-200 border border-[#3c3c3c] cursor-pointer flex items-center justify-center"
-                  title={viewMode === 'grid' ? 'Ver Gráfico de Tendencias' : 'Ver Precios de Hoy'}
-                >
-                  <TrendingUp className={`w-4 h-4 ${viewMode === 'chart' ? 'text-green-400' : 'text-gray-400'}`} />
-                </button>
-                <button
-                  type="button"
-                  onClick={fetchRealPrices}
-                  disabled={loadingPrices}
-                  className="p-2.5 bg-[#2d2d2d] hover:bg-[#3d3d3d] rounded-xl text-gray-300 hover:text-white transition-all duration-200 border border-[#3c3c3c] disabled:opacity-50 cursor-pointer"
-                  title="Actualizar Cotizaciones Reales"
-                >
-                  <RefreshCw className={`w-4 h-4 ${loadingPrices ? 'animate-spin text-purple-400' : ''}`} />
-                </button>
-              </div>
-            </div>
-
-            {viewMode === 'grid' ? (
-              <div className="space-y-2.5">
-                {Object.entries(prices).map(([grano, price]) => (
-                  <div key={grano} className="flex justify-between items-center p-3 bg-[#252525] rounded-xl border border-[#353535] transition-all hover:bg-[#2c2c2c] group">
-                    <div className="flex items-center gap-2.5">
-                      <span className="text-base">🌾</span>
-                      <span className="font-bold text-gray-200 capitalize text-xs sm:text-sm">{grano}</span>
-                    </div>
-                    <div className="text-sm sm:text-base font-black text-green-400 font-mono group-hover:scale-105 transition-transform">
-                      {Number(price) > 0 ? <>USD {Number(price).toFixed(1)} <span className="text-[9px] text-gray-500 font-normal">/tn</span></> : 'Sin datos'}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="flex-1 min-h-52 w-full mt-2">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={priceHistory} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" />
-                    <XAxis dataKey="formattedDate" stroke="#888888" fontSize={9} tickLine={false} />
-                    <YAxis stroke="#888888" fontSize={9} tickLine={false} domain={['auto', 'auto']} />
-                    <RechartsTooltip
-                      contentStyle={{ backgroundColor: '#1e1e1e', borderColor: '#333', borderRadius: '12px', fontSize: '10px' }}
-                      itemStyle={{ color: '#fff' }}
-                    />
-                    <Legend verticalAlign="top" height={24} iconSize={6} iconType="circle" wrapperStyle={{ fontSize: '9px' }} />
-                    <Line type="monotone" dataKey="soja" name="Soja" stroke="#10b981" strokeWidth={2} dot={{ r: 1 }} activeDot={{ r: 3 }} />
-                    <Line type="monotone" dataKey="maiz" name="Maíz" stroke="#3b82f6" strokeWidth={1.5} dot={{ r: 1 }} />
-                    <Line type="monotone" dataKey="trigo" name="Trigo" stroke="#f59e0b" strokeWidth={1.5} dot={{ r: 1 }} />
-                    
-                    {averageTargets.soja && (
-                      <ReferenceLine y={averageTargets.soja} stroke="#10b981" strokeDasharray="4 4" strokeWidth={1}
-                        label={{ value: `Obj Soja ($${averageTargets.soja})`, fill: '#10b981', fontSize: 7, position: 'insideTopLeft' }} />
-                    )}
-                    {averageTargets.maiz && (
-                      <ReferenceLine y={averageTargets.maiz} stroke="#3b82f6" strokeDasharray="4 4" strokeWidth={1}
-                        label={{ value: `Obj Maíz ($${averageTargets.maiz})`, fill: '#3b82f6', fontSize: 7, position: 'insideTopLeft' }} />
-                    )}
-                    {averageTargets.trigo && (
-                      <ReferenceLine y={averageTargets.trigo} stroke="#f59e0b" strokeDasharray="4 4" strokeWidth={1}
-                        label={{ value: `Obj Trigo ($${averageTargets.trigo})`, fill: '#f59e0b', fontSize: 7, position: 'insideTopLeft' }} />
-                    )}
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </div>
-
-          <div className="mt-5 pt-4 border-t border-[#333] flex flex-col justify-between text-[10px] text-gray-400 gap-1 sm:gap-2">
-            <div>
-              <span className="text-gray-500">Origen:</span> <span className="font-semibold text-gray-300">{pricesMetadata.source}</span>
-            </div>
-            {pricesMetadata.date && (
-              <div>
-                <span className="text-gray-500">Actualizado:</span> <span className="font-mono text-gray-300">{pricesMetadata.date}</span>
-              </div>
-            )}
-          </div>
+        {/* Col 1: Precios de Pizarra Rosario Oficial BCR (GIX) */}
+        <div className="h-full">
+          <PizarraRosarioWidget />
         </div>
 
         {/* Col 2: Balance de volumen */}

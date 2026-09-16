@@ -11,6 +11,7 @@ import { captureWhatsAppRawBody, requireAuth } from './src/middlewares/auth.ts';
 import { authRateLimiter, globalApiRateLimiter } from './src/middlewares/rateLimit.ts';
 import { securityHeaders } from './src/middlewares/securityHeaders.ts';
 import { initRealtime, notifyClients } from './src/services/realtime.ts';
+import { bcrScheduler } from './src/services/market/bcrScheduler.ts';
 import apiRouter from './src/routes/index.ts';
 
 dotenv.config();
@@ -50,6 +51,7 @@ async function startServer() {
   }
 
   await initializeDatabase();
+  bcrScheduler.start();
 
   if (process.env.NODE_ENV !== 'production') {
     const { createServer: createViteServer } = await import('vite');

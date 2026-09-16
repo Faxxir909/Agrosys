@@ -1,72 +1,7 @@
 import type { Request, Response } from 'express';
-import crypto from 'crypto';
+import { marketService } from '../services/market/marketService.ts';
 import { GoogleGenAI } from '@google/genai';
-import { dbQuery, isDbSimulated, simulatedDb } from '../../server_db.ts';
 
-async function triggerPriceAlerts(currentPrices: any) {
-  // Read all clients
-  let clients: any[] = [];
-  if (isDbSimulated()) {
-    clients = simulatedDb.clients;
-  } else {
-    try {
-      const result = await dbQuery('SELECT id, name, phone, metadata FROM clients');
-      clients = result.rows;
-    } catch (e) {
-      console.error('[ALERTS] Failed to query clients for price triggers:', e);
-      return;
-    }
-  }
-
-  const { sendWhatsAppMessage } = await import('../../whatsapp_connector.ts');
-
-  for (const client of clients) {
-    if (!client.phone) continue;
-    
-    // Parse metadata
-    let metadata: any = {};
-    if (typeof client.metadata === 'string') {
-      try { metadata = JSON.parse(client.metadata); } catch(e){}
-    } else if (client.metadata && typeof client.metadata === 'object') {
-      metadata = client.metadata;
-    } else {
-      // If it is in-memory simulated DB, any extra fields are in client object directly or metadata
-      metadata = client;
-    }
-
-    const grains = ['soja', 'maiz', 'trigo', 'sorgo', 'girasol'];
-    for (const grain of grains) {
-      const targetPriceKey = `precio_objetivo_${grain}`;
-      const targetPriceVal = metadata[targetPriceKey] || client[targetPriceKey];
-      
-      if (targetPriceVal) {
-        const targetPrice = Number(targetPriceVal);
-        const currentPrice = Number(currentPrices[grain]);
-
-        if (currentPrice >= targetPrice && currentPrice > 0) {
-          const formattedPhone = client.phone.trim();
-          const messageText = `📢 *Alerta de Precio AgroSys* 📢\n\nEstimado/a *${client.name}*, le notificamos que el grano *${grain.toUpperCase()}* ha alcanzado su precio objetivo de *${targetPrice} USD/tn* en el mercado de Rosario.\n\n📈 *Precio actual:* *${currentPrice} USD/tn*\n\nContacte a su corredor de AgroSys para cerrar boletos de venta en este valor.`;
-          
-          console.log(`[ALERT TRIGGER] Target met for client ${client.name} on ${grain}: Current ${currentPrice} >= Target ${targetPrice}. Sending WhatsApp message...`);
-          try {
-            await sendWhatsAppMessage(formattedPhone, messageText);
-            // Update client metadata to clear the alert to prevent spamming
-            if (isDbSimulated()) {
-              client[targetPriceKey] = null;
-              if (client.metadata) client.metadata[targetPriceKey] = null;
-            } else {
-              const updatedMetadata = { ...metadata, [targetPriceKey]: null };
-              await dbQuery('UPDATE clients SET metadata = $1 WHERE id = $2', [JSON.stringify(updatedMetadata), client.id]);
-            }
-            console.log(`[ALERT SENT] WhatsApp notification sent to ${client.name}. Target reset.`);
-          } catch (waErr) {
-            console.error(`[ALERT ERROR] Failed to send WhatsApp price alert to ${client.name}:`, waErr);
-          }
-        }
-      }
-    }
-  }
-}
 
 export async function parseOpportunityText(req: Request, res: Response) {
   try {
@@ -261,110 +196,37 @@ Devuelve un JSON estrictamente válido con el siguiente formato:
   }
 }
 
-export async function pizarraHistory(req: Request, res: Response) {
+// Compatibility endpoints: never return legacy Gemini-generated price history.
+export async function pizarraHistory(_req: Request, res: Response) {
   try {
-    if (isDbSimulated()) {
-      const history = [...simulatedDb.pizarra_prices]
-        .sort((a, b) => new Date(a.createdAt || a.created_at).getTime() - new Date(b.createdAt || b.created_at).getTime())
-        .slice(-30);
-      return res.json(history);
+    const grains = ['soja', 'maiz', 'trigo', 'sorgo', 'girasol'] as const;
+    const series = await Promise.all(grains.map(grain => marketService.getRosarioHistory({ grain, days: 30 })));
+    const byDate = new Map<string, Record<string, unknown>>();
+    for (const prices of series) for (const p of prices) {
+      const row = byDate.get(p.priceDate) || {
+        createdAt: `${p.priceDate}T12:00:00-03:00`, source: 'CAC-BCR — USD informativo',
+        soja: null, maiz: null, trigo: null, sorgo: null, girasol: null,
+      };
+      row[p.grain] = p.isEstimated ? null : p.priceUsd;
+      byDate.set(p.priceDate, row);
     }
-    const result = await dbQuery(
-      `SELECT id, soja, maiz, trigo, sorgo, girasol, source, created_at as "createdAt"
-       FROM pizarra_prices ORDER BY created_at ASC LIMIT 30`
-    );
-    res.json(result.rows);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.json([...byDate.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([, row]) => row));
+  } catch {
+    res.status(503).json({ error: 'Histórico oficial temporalmente no disponible.' });
   }
 }
 
-export async function realPizarraPrices(req: Request, res: Response) {
+export async function realPizarraPrices(_req: Request, res: Response) {
   try {
-    if (!process.env.GEMINI_API_KEY) {
-      return res.status(503).json({ error: 'Las cotizaciones reales no están configuradas. Defina GEMINI_API_KEY.' });
-    }
-
-    const ai = new GoogleGenAI({
-      apiKey: process.env.GEMINI_API_KEY.trim(),
-      httpOptions: {
-        headers: {
-          'User-Agent': 'aistudio-build',
-        }
-      }
+    const data = await marketService.getRosarioCurrentPrices();
+    if (!data.success) return res.status(503).json({ error: data.message });
+    res.json({
+      ...Object.fromEntries(data.products.map(p => [p.grain, p.isEstimated ? null : p.priceUsd])),
+      source: 'Cámara Arbitral de Cereales de Rosario — USD informativo',
+      sourceUrl: data.sourceUrl, date: data.priceDate, stale: data.stale,
+      products: data.products,
     });
-
-    const googleSearchPrompt = `Busca los valores más recientes de precios de pizarra de la Cámara Arbitral de Cereales de la Bolsa de Comercio de Rosario (Argentina) o precios de referencia de MATba Rofex para los siguientes granos: Soja, Maíz, Trigo, Sorgo y Girasol.
-Si los precios están expresados en pesos argentinos (ARS), conviértelos a dólares (USD) al tipo de cambio oficial vigente en Banco Nación o estimación de plaza para reportar valores homogéneos de USD por tonelada, o consíguelos directamente en USD (precios FOB o de pizarra de referencia en Argentina).
-
-Devuelve un objeto JSON estrictamente válido con los campos:
-{
-  "soja": número decimal o entero (precio en USD/tn),
-  "maiz": número decimal o entero (precio en USD/tn),
-  "trigo": número decimal o entero (precio en USD/tn),
-  "sorgo": número decimal o entero (precio en USD/tn),
-  "girasol": número decimal o entero (precio en USD/tn),
-  "source": string que describa la fuente y conversión rápida (ej: "Cámara Arbitral de Rosario / MATba - USD de referencia oficial"),
-  "date": string con fecha del reporte (ej: "2026-05-20" o la actual más alta disponible)
-}`;
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.5-flash',
-      contents: googleSearchPrompt,
-      config: {
-        tools: [{ googleSearch: {} }]
-      }
-    });
-
-    const parsedText = response.text || '';
-    const match = parsedText.match(/\{[\s\S]*\}/);
-    if (match) {
-      const parsed = JSON.parse(match[0]);
-      triggerPriceAlerts(parsed).catch(err => {
-        console.error('[ALERTS] Error in triggerPriceAlerts:', err);
-      });
-
-      // Save price history
-      try {
-        const id = crypto.randomUUID();
-        const createdAt = new Date();
-        if (isDbSimulated()) {
-          simulatedDb.pizarra_prices.push({
-            id,
-            soja: Number(parsed.soja),
-            maiz: Number(parsed.maiz),
-            trigo: Number(parsed.trigo),
-            sorgo: Number(parsed.sorgo),
-            girasol: Number(parsed.girasol),
-            source: parsed.source || 'Cámara Arbitral de Rosario / MATba - USD de referencia oficial',
-            createdAt
-          });
-        } else {
-          await dbQuery(
-            `INSERT INTO pizarra_prices (id, soja, maiz, trigo, sorgo, girasol, source, created_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-            [
-              id,
-              Number(parsed.soja),
-              Number(parsed.maiz),
-              Number(parsed.trigo),
-              Number(parsed.sorgo),
-              Number(parsed.girasol),
-              parsed.source || 'Cámara Arbitral de Rosario / MATba - USD de referencia oficial',
-              createdAt
-            ]
-          );
-        }
-      } catch (saveErr) {
-        console.error('[HISTORY] Failed to save pizarra price history:', saveErr);
-      }
-
-      res.json(parsed);
-    } else {
-      res.status(500).json({ error: 'No se pudieron estructurar los precios en formato JSON' });
-    }
-  } catch (err) {
-    console.error('Error fetching real pizarra prices with search grounding:', err);
-    res.status(500).json({ error: 'Fallo al buscar los precios reales actuales' });
+  } catch {
+    res.status(503).json({ error: 'No se pudo consultar la publicación oficial de BCR.' });
   }
 }

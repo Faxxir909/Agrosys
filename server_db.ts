@@ -23,6 +23,8 @@ export const simulatedDb: {
   audit_logs: any[];
   whatsapp_templates: any[];
   pizarra_prices: any[];
+  grain_market_prices: any[];
+  market_sync_logs: any[];
 } = {
   users: [],
   clients: [],
@@ -34,7 +36,9 @@ export const simulatedDb: {
   client_interactions: [],
   audit_logs: [],
   whatsapp_templates: [],
-  pizarra_prices: []
+  pizarra_prices: [],
+  grain_market_prices: [],
+  market_sync_logs: []
 };
 
 if (connectionString) {
@@ -513,29 +517,7 @@ export async function initializeDatabase() {
         console.log('[DB] Skipping default broker password seed in production.');
       }
 
-      // Seed Pizarra prices if empty
-      const pizarraCheck = await dbQuery('SELECT id FROM pizarra_prices LIMIT 1');
-      if (pizarraCheck.rows.length === 0) {
-        const today = new Date();
-        for (let i = 9; i >= 0; i--) {
-          const date = new Date(today);
-          date.setDate(today.getDate() - i);
-          const rand = Math.sin(i) * 5;
-          await dbQuery(
-            'INSERT INTO pizarra_prices (id, soja, maiz, trigo, sorgo, girasol, source, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
-            [
-              `pizarra_seed_${i}`,
-              Math.round(280 + rand),
-              Math.round(160 - rand * 0.6),
-              Math.round(195 + rand * 0.8),
-              Math.round(145 + rand * 0.4),
-              Math.round(310 + rand * 1.2),
-              'Cámara Arbitral de Rosario / MATba - USD de referencia oficial',
-              date
-            ]
-          );
-        }
-      }
+      // Market prices are populated only from the verified CAC-BCR publication.
 
       // Seed demo clients and operational data if empty
       const clientsCheck = await dbQuery('SELECT id FROM clients LIMIT 1');

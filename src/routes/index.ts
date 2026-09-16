@@ -9,6 +9,7 @@ import dealsRoutes from './deals.ts';
 import tasksRoutes from './tasks.ts';
 import whatsappRoutes from './whatsapp.ts';
 import aiRoutes from './ai.ts';
+import marketRoutes from './market.ts';
 
 const apiRouter = Router();
 
@@ -29,6 +30,7 @@ apiRouter.use('/clients', clientsRoutes);
 apiRouter.use('/opportunities', opportunitiesRoutes);
 apiRouter.use('/deals', dealsRoutes);
 apiRouter.use('/tasks', tasksRoutes);
+apiRouter.use('/market', marketRoutes);
 apiRouter.use(whatsappRoutes);
 apiRouter.use(aiRoutes);
 

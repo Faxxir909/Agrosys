@@ -190,6 +190,38 @@ CREATE TABLE IF NOT EXISTS pizarra_prices (
   created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
+-- Tabla oficial para cotizaciones de mercado BCR GIX
+CREATE TABLE IF NOT EXISTS grain_market_prices (
+  id BIGSERIAL PRIMARY KEY,
+  external_id BIGINT,
+  grain VARCHAR(30) NOT NULL,
+  market VARCHAR(50) NOT NULL DEFAULT 'Rosario',
+  price_ars NUMERIC(16,2),
+  price_usd NUMERIC(16,4),
+  variation_ars NUMERIC(16,2),
+  movement INTEGER,
+  is_estimated BOOLEAN NOT NULL DEFAULT FALSE,
+  exchange_rate NUMERIC(16,4),
+  price_date DATE NOT NULL,
+  source VARCHAR(50) NOT NULL DEFAULT 'BCR_GIX',
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  UNIQUE(grain, market, price_date)
+);
+
+-- Tabla para observabilidad y registro de sincronizaciones con proveedores de mercado
+CREATE TABLE IF NOT EXISTS market_sync_logs (
+  id BIGSERIAL PRIMARY KEY,
+  provider VARCHAR(50) NOT NULL DEFAULT 'BCR_GIX',
+  started_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  finished_at TIMESTAMP,
+  status VARCHAR(30) NOT NULL,
+  records_received INTEGER DEFAULT 0,
+  records_saved INTEGER DEFAULT 0,
+  error_code VARCHAR(50),
+  error_message_safe TEXT
+);
+
 -- =================================================================
 -- 2. Índices
 -- =================================================================
@@ -207,6 +239,9 @@ CREATE INDEX IF NOT EXISTS idx_deals_crop ON deals (crop_type);
 CREATE INDEX IF NOT EXISTS idx_tasks_owner ON tasks (owner_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks (due_date);
 CREATE INDEX IF NOT EXISTS idx_pizarra_created ON pizarra_prices (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_grain_prices_lookup ON grain_market_prices (grain, market, price_date DESC);
+CREATE INDEX IF NOT EXISTS idx_grain_prices_date ON grain_market_prices (price_date DESC);
+CREATE INDEX IF NOT EXISTS idx_market_sync_started ON market_sync_logs (started_at DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_created ON audit_logs (created_at DESC);
 
 -- =================================================================

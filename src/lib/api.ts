@@ -30,8 +30,8 @@ async function request(path: string, options: RequestInit = {}): Promise<any> {
     let errorMessage = errorText;
     try {
       const parsed = JSON.parse(errorText);
-      if (parsed && parsed.error) {
-        errorMessage = parsed.error;
+      if (parsed) {
+        errorMessage = parsed.error || parsed.message || parsed?.log?.errorMessage || errorText;
       }
     } catch (e) {}
     throw new Error(errorMessage || `HTTP error! Status: ${response.status}`);
@@ -148,6 +148,34 @@ export const api = {
     delete: (id: string) => request(`/api/tasks/${id}`, { method: 'DELETE' })
   },
 
-  // Historical Pizarra History
-  pizarraHistory: () => request('/api/pizarra-history')
+  // Historical Pizarra History (Legacy fallback)
+  pizarraHistory: () => request('/api/pizarra-history'),
+
+  // Official BCR GIX Market Prices
+  market: {
+    getRosarioCurrent: () => request('/api/market/rosario'),
+    getRosarioHistory: (params?: { grain?: string; days?: number; currency?: 'ARS' | 'USD' | 'ALL'; limit?: number }) => {
+      const query = new URLSearchParams();
+      if (params?.grain) query.set('grain', params.grain);
+      if (params?.days) query.set('days', String(params.days));
+      if (params?.currency) query.set('currency', params.currency);
+      if (params?.limit) query.set('limit', String(params.limit));
+      const qs = query.toString();
+      return request(`/api/market/rosario/history${qs ? `?${qs}` : ''}`);
+    },
+    syncRosario: (daysBack: number = 7) => request('/api/market/rosario/sync', {
+      method: 'POST',
+      body: JSON.stringify({ daysBack })
+    }),
+    getStatus: () => request('/api/market/rosario/status'),
+    compare: (grain: string, offeredPrice: number, currency: string = 'USD', quantityTn?: number) => {
+      const query = new URLSearchParams({
+        grain,
+        offeredPrice: String(offeredPrice),
+        currency
+      });
+      if (quantityTn) query.set('quantityTn', String(quantityTn));
+      return request(`/api/market/compare?${query.toString()}`);
+    }
+  }
 };

@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { AlertCircle, CalendarDays, Check, Loader2, UserPlus, X } from 'lucide-react';
 import { api } from '../lib/api';
+import { OpportunitySpreadBadge } from './market/OpportunitySpreadBadge';
 
 type Props = {
   alert: any | null;
@@ -156,6 +157,16 @@ export function OpportunityReviewModal({ alert, clients, onClose, onSuccess }: P
               <div>
                 <label className="block text-xs font-medium text-gray-400 mb-1.5">Precio (USD/TN)</label>
                 <input type="number" min="0.01" step="0.01" value={price} onChange={e => setPrice(e.target.value)} placeholder="USD/TN" className={inputClass} />
+              </div>
+            )}
+            {priceMode === 'fijo' && Number(price) > 0 && (
+              <div className="sm:col-span-2 lg:col-span-4">
+                <OpportunitySpreadBadge
+                  grain={cropType}
+                  offeredPrice={Number(price)}
+                  type={type}
+                  quantityTn={Number(quantity) || undefined}
+                />
               </div>
             )}
             <div className="sm:col-span-2">
