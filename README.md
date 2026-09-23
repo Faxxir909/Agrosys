@@ -1,20 +1,23 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# Agrosys
 
-# Run and deploy your AI Studio app
+Plataforma de gestión agropecuaria, CRM comercial, seguimiento de cotizaciones y análisis de mercado con pizarra BCR Rosario.
 
-This contains everything you need to run your app locally.
+## Módulos y Funcionalidades
+- **CRM y Clientes**: Gestión de cartera, estados de clientes, campos y geolocalización interactiva.
+- **Oportunidades Comerciales**: Tablero Kanban, gestión de ofertas de compra/venta y comparador contra mercado.
+- **Pizarra Rosario (BCR)**: Integración con precios de granos de la Bolsa de Comercio de Rosario, historial y cálculo de spreads.
+- **Asistente IA**: Procesamiento de mensajes, extracción de entidades y sugerencias comerciales.
 
-View your app in AI Studio: https://ai.studio/apps/146e382a-4a8d-492e-850f-f64056a97712
+## Ejecución Local
 
-## Run Locally
+**Requisitos previos:** Node.js (v18+)
 
-**Prerequisites:**  Node.js
-
-
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+1. Instalar dependencias:
+   ```bash
+   npm install
+   ```
+2. Configurar variables de entorno en `.env` (guiarse con `.env.example`).
+3. Iniciar la aplicación:
+   ```bash
+   npm run dev
+   ```
